@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Plus, 
   Search, 
@@ -19,26 +19,33 @@ import {
 } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  trabajosMock, 
-  tiposTrabajoMock,
-  formatCurrency,
-  formatDate,
-  getClienteById,
-  getTipoTrabajoById,
-  getItemsByTrabajoId
-} from '@/lib/mockData';
+import { useApp } from '@/contexts/AppContext';
+import { TrabajoForm } from '@/components/forms/TrabajoForm';
+import { formatCurrency, formatDate } from '@/lib/mockData';
 import { EstadoTrabajo } from '@/types';
 
 const estadoOptions: EstadoTrabajo[] = ['Borrador', 'Pendiente', 'En proceso', 'Completado', 'Cancelado'];
 
 export default function TrabajosList() {
+  const navigate = useNavigate();
+  const { 
+    trabajos, 
+    clientes,
+    tiposTrabajo,
+    getClienteById,
+    getTipoTrabajoById,
+    getItemsByTrabajoId,
+    createTrabajo,
+    isLoading
+  } = useApp();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [tipoFilter, setTipoFilter] = useState<string>('all');
   const [estadoFilter, setEstadoFilter] = useState<string>('all');
+  const [trabajoFormOpen, setTrabajoFormOpen] = useState(false);
 
   const filteredTrabajos = useMemo(() => {
-    return trabajosMock.filter((trabajo) => {
+    return trabajos.filter((trabajo) => {
       const cliente = getClienteById(trabajo.clienteId);
       const searchLower = searchQuery.toLowerCase();
       
@@ -52,13 +59,19 @@ export default function TrabajosList() {
 
       return matchesSearch && matchesTipo && matchesEstado;
     });
-  }, [searchQuery, tipoFilter, estadoFilter]);
+  }, [trabajos, searchQuery, tipoFilter, estadoFilter, getClienteById]);
 
   const calculateProgress = (trabajoId: string): number => {
     const items = getItemsByTrabajoId(trabajoId);
     if (items.length === 0) return 0;
     const completed = items.filter(i => i.estado === 'Completado').length;
     return Math.round((completed / items.length) * 100);
+  };
+
+  const handleCreateTrabajo = async (data: any, items: any[]) => {
+    const newTrabajo = await createTrabajo(data, items);
+    setTrabajoFormOpen(false);
+    navigate(`/trabajos/${newTrabajo.id}`);
   };
 
   return (
@@ -68,14 +81,12 @@ export default function TrabajosList() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Trabajos</h1>
           <p className="text-muted-foreground mt-1">
-            {trabajosMock.length} trabajos en total
+            {trabajos.length} trabajos en total
           </p>
         </div>
-        <Button asChild>
-          <Link to="/trabajos/nuevo">
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Trabajo
-          </Link>
+        <Button onClick={() => setTrabajoFormOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nuevo Trabajo
         </Button>
       </div>
 
@@ -98,7 +109,7 @@ export default function TrabajosList() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los tipos</SelectItem>
-              {tiposTrabajoMock.map((tipo) => (
+              {tiposTrabajo.map((tipo) => (
                 <SelectItem key={tipo.id} value={tipo.id}>
                   {tipo.nombre}
                 </SelectItem>
@@ -204,6 +215,16 @@ export default function TrabajosList() {
           <p className="text-muted-foreground">No se encontraron trabajos</p>
         </div>
       )}
+
+      {/* Trabajo Form Dialog */}
+      <TrabajoForm
+        open={trabajoFormOpen}
+        onOpenChange={setTrabajoFormOpen}
+        clientes={clientes}
+        tiposTrabajo={tiposTrabajo}
+        onSubmit={handleCreateTrabajo}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

@@ -27,13 +27,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { 
-  clientesMock, 
-  tiposClienteMock, 
-  formatCurrency,
-  getTipoClienteById,
-  getTrabajosByClienteId
-} from '@/lib/mockData';
+import { useApp } from '@/contexts/AppContext';
+import { ClienteForm } from '@/components/forms/ClienteForm';
+import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
+import { formatCurrency } from '@/lib/mockData';
+import { Cliente } from '@/types';
 
 const clienteTypeIcons: Record<string, typeof User> = {
   'Persona Física': User,
@@ -42,13 +40,27 @@ const clienteTypeIcons: Record<string, typeof User> = {
 };
 
 export default function ClientesList() {
+  const { 
+    clientes, 
+    tiposCliente,
+    createCliente,
+    updateCliente,
+    toggleClienteEstado,
+    getTrabajosByClienteId,
+    getTipoClienteById,
+    isLoading 
+  } = useApp();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [tipoFilter, setTipoFilter] = useState<string>('all');
   const [estadoFilter, setEstadoFilter] = useState<string>('all');
+  
+  const [clienteFormOpen, setClienteFormOpen] = useState(false);
+  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  const [togglingClienteId, setTogglingClienteId] = useState<string | null>(null);
 
   const filteredClientes = useMemo(() => {
-    return clientesMock.filter((cliente) => {
-      // Search filter
+    return clientes.filter((cliente) => {
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = 
         cliente.nombreCompleto.toLowerCase().includes(searchLower) ||
@@ -56,15 +68,49 @@ export default function ClientesList() {
         cliente.email.toLowerCase().includes(searchLower) ||
         cliente.telefono.includes(searchQuery);
 
-      // Type filter
       const matchesTipo = tipoFilter === 'all' || cliente.tipoClienteId === tipoFilter;
-
-      // Status filter
       const matchesEstado = estadoFilter === 'all' || cliente.estado === estadoFilter;
 
       return matchesSearch && matchesTipo && matchesEstado;
     });
-  }, [searchQuery, tipoFilter, estadoFilter]);
+  }, [clientes, searchQuery, tipoFilter, estadoFilter]);
+
+  const handleOpenEdit = (cliente: Cliente, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingCliente(cliente);
+    setClienteFormOpen(true);
+  };
+
+  const handleToggleEstado = async (clienteId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTogglingClienteId(clienteId);
+  };
+
+  const confirmToggleEstado = async () => {
+    if (togglingClienteId) {
+      await toggleClienteEstado(togglingClienteId);
+      setTogglingClienteId(null);
+    }
+  };
+
+  const handleFormClose = (open: boolean) => {
+    setClienteFormOpen(open);
+    if (!open) setEditingCliente(null);
+  };
+
+  const handleFormSubmit = async (data: any) => {
+    if (editingCliente) {
+      await updateCliente(editingCliente.id, data);
+    } else {
+      await createCliente(data);
+    }
+    setClienteFormOpen(false);
+    setEditingCliente(null);
+  };
+
+  const clienteToToggle = togglingClienteId ? clientes.find(c => c.id === togglingClienteId) : null;
 
   return (
     <div className="space-y-6">
@@ -73,14 +119,12 @@ export default function ClientesList() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Clientes</h1>
           <p className="text-muted-foreground mt-1">
-            {clientesMock.length} clientes registrados
+            {clientes.length} clientes registrados
           </p>
         </div>
-        <Button asChild>
-          <Link to="/clientes/nuevo">
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Cliente
-          </Link>
+        <Button onClick={() => setClienteFormOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nuevo Cliente
         </Button>
       </div>
 
@@ -103,7 +147,7 @@ export default function ClientesList() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los tipos</SelectItem>
-              {tiposClienteMock.map((tipo) => (
+              {tiposCliente.map((tipo) => (
                 <SelectItem key={tipo.id} value={tipo.id}>
                   {tipo.nombre}
                 </SelectItem>
@@ -158,10 +202,17 @@ export default function ClientesList() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>Editar</DropdownMenuItem>
-                    <DropdownMenuItem>Ver trabajos</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
-                      Desactivar
+                    <DropdownMenuItem onClick={(e) => handleOpenEdit(cliente, e)}>
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to={`/clientes/${cliente.id}`}>Ver trabajos</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={(e) => handleToggleEstado(cliente.id, e)}
+                      className={cliente.estado === 'activo' ? 'text-destructive' : 'text-success'}
+                    >
+                      {cliente.estado === 'activo' ? 'Desactivar' : 'Activar'}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -208,6 +259,32 @@ export default function ClientesList() {
           <p className="text-muted-foreground">No se encontraron clientes</p>
         </div>
       )}
+
+      {/* Cliente Form Dialog */}
+      <ClienteForm
+        open={clienteFormOpen}
+        onOpenChange={handleFormClose}
+        tiposCliente={tiposCliente}
+        onSubmit={handleFormSubmit}
+        isLoading={isLoading}
+        defaultValues={editingCliente || undefined}
+        mode={editingCliente ? 'edit' : 'create'}
+      />
+
+      {/* Toggle Estado Confirmation */}
+      <DeleteConfirmDialog
+        open={!!togglingClienteId}
+        onOpenChange={(open) => !open && setTogglingClienteId(null)}
+        title={clienteToToggle?.estado === 'activo' ? 'Desactivar cliente' : 'Activar cliente'}
+        description={
+          clienteToToggle?.estado === 'activo'
+            ? '¿Estás seguro de desactivar este cliente? No podrás crear nuevos trabajos para él.'
+            : '¿Estás seguro de activar este cliente?'
+        }
+        onConfirm={confirmToggleEstado}
+        isLoading={isLoading}
+        confirmText={clienteToToggle?.estado === 'activo' ? 'Desactivar' : 'Activar'}
+      />
     </div>
   );
 }
