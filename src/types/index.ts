@@ -54,8 +54,20 @@ export interface PasoPredefinido {
   nombre: string;
   estadoInicial: EstadoItem;
   diasEstimados: number;
+  costoEstimado: number;
   descripcion: string;
   opcional: boolean;
+}
+
+export interface CategoriaTrabajo {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  color: string;
+  orden: number;
+  activo: boolean;
+  fechaCreacion: Date;
+  fechaActualizacion: Date;
 }
 
 export interface TipoTrabajo {

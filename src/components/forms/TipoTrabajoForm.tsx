@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { TipoTrabajo, PasoPredefinido, EstadoItem } from '@/types';
+import { TipoTrabajo, PasoPredefinido, EstadoItem, CategoriaTrabajo } from '@/types';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/mockData';
@@ -26,20 +26,13 @@ interface TipoTrabajoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tipoTrabajo?: TipoTrabajo | null;
+  categorias: CategoriaTrabajo[];
   onSubmit: (data: Omit<TipoTrabajo, 'id' | 'fechaCreacion' | 'fechaActualizacion'>) => void;
 }
 
-const categorias: TipoTrabajo['categoria'][] = [
-  'Notarial Unilateral',
-  'Notarial Bilateral',
-  'Judicial',
-  'Administrativo',
-  'Otro',
-];
-
 const estadosIniciales: EstadoItem[] = ['Pendiente', 'En proceso'];
 
-export function TipoTrabajoForm({ open, onOpenChange, tipoTrabajo, onSubmit }: TipoTrabajoFormProps) {
+export function TipoTrabajoForm({ open, onOpenChange, tipoTrabajo, categorias, onSubmit }: TipoTrabajoFormProps) {
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [categoria, setCategoria] = useState<TipoTrabajo['categoria']>('Notarial Unilateral');
@@ -77,6 +70,7 @@ export function TipoTrabajoForm({ open, onOpenChange, tipoTrabajo, onSubmit }: T
       nombre: '',
       estadoInicial: 'Pendiente',
       diasEstimados: 1,
+      costoEstimado: 0,
       descripcion: '',
       opcional: false,
     }]);
@@ -138,11 +132,11 @@ export function TipoTrabajoForm({ open, onOpenChange, tipoTrabajo, onSubmit }: T
               <Label htmlFor="categoria">Categoría</Label>
               <Select value={categoria} onValueChange={(v) => setCategoria(v as TipoTrabajo['categoria'])}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Seleccione categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categorias.map(c => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  {categorias.filter(c => c.activo).map(c => (
+                    <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -222,8 +216,8 @@ export function TipoTrabajoForm({ open, onOpenChange, tipoTrabajo, onSubmit }: T
                   <span className="font-medium text-sm">Paso {paso.numero}</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="space-y-1 md:col-span-2">
                     <Label className="text-xs">Nombre del paso</Label>
                     <Input
                       value={paso.nombre}
@@ -257,13 +251,26 @@ export function TipoTrabajoForm({ open, onOpenChange, tipoTrabajo, onSubmit }: T
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Descripción</Label>
-                  <Input
-                    value={paso.descripcion}
-                    onChange={(e) => updatePaso(index, { descripcion: e.target.value })}
-                    placeholder="Descripción breve del paso..."
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Descripción</Label>
+                    <Input
+                      value={paso.descripcion}
+                      onChange={(e) => updatePaso(index, { descripcion: e.target.value })}
+                      placeholder="Descripción breve del paso..."
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Costo estimado (Gs.)</Label>
+                    <Input
+                      type="number"
+                      value={paso.costoEstimado || 0}
+                      onChange={(e) => updatePaso(index, { costoEstimado: parseInt(e.target.value) || 0 })}
+                      min="0"
+                      placeholder="500000"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between">
