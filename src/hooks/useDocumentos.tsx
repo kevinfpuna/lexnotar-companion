@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Documento, TipoDocumento } from '@/types';
 import { toast } from 'sonner';
 import { generateId } from '@/lib/calculations';
+import { useLocalStorage } from './useLocalStorage';
 
 // Utility functions for base64 handling
 export const fileToBase64 = (file: File): Promise<string> => {
@@ -120,12 +121,9 @@ interface CreateDocumentoData {
 }
 
 export function useDocumentos() {
-  const [documentos, setDocumentos] = useState<Documento[]>(documentosMock);
-  const [isLoading, setIsLoading] = useState(false);
+  const [documentos, setDocumentos] = useLocalStorage<Documento[]>('lexnotar_documentos', documentosMock);
 
   const createDocumento = useCallback(async (file: File, metadata: CreateDocumentoData): Promise<Documento> => {
-    setIsLoading(true);
-    
     try {
       // Validate file size (max 10MB)
       const maxSizeMB = 10;
@@ -159,35 +157,24 @@ export function useDocumentos() {
       const message = error instanceof Error ? error.message : 'Error al subir documento';
       toast.error(message);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
-  }, []);
+  }, [setDocumentos]);
 
   const updateDocumento = useCallback(async (id: string, updates: Partial<Omit<Documento, 'id' | 'archivoBase64' | 'mimeType' | 'size' | 'fechaSubida'>>): Promise<void> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
     setDocumentos(prev => prev.map(doc => 
       doc.id === id 
         ? { ...doc, ...updates, fechaActualizacion: new Date() }
         : doc
     ));
     
-    setIsLoading(false);
     toast.success('Documento actualizado');
-  }, []);
+  }, [setDocumentos]);
 
   const deleteDocumento = useCallback(async (id: string): Promise<boolean> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
     setDocumentos(prev => prev.filter(doc => doc.id !== id));
-    
-    setIsLoading(false);
     toast.success('Documento eliminado');
     return true;
-  }, []);
+  }, [setDocumentos]);
 
   const getDocumentosByCliente = useCallback((clienteId: string): Documento[] => {
     return documentos.filter(doc => doc.clienteId === clienteId);
@@ -203,7 +190,6 @@ export function useDocumentos() {
 
   return {
     documentos,
-    isLoading,
     createDocumento,
     updateDocumento,
     deleteDocumento,

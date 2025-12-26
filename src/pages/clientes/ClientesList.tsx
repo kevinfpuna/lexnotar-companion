@@ -43,6 +43,7 @@ export default function ClientesList() {
   const { 
     clientes, 
     tiposCliente,
+    trabajos,
     createCliente,
     updateCliente,
     toggleClienteEstado,
@@ -90,7 +91,7 @@ export default function ClientesList() {
 
   const confirmToggleEstado = async () => {
     if (togglingClienteId) {
-      await toggleClienteEstado(togglingClienteId);
+      await toggleClienteEstado(togglingClienteId, trabajos);
       setTogglingClienteId(null);
     }
   };

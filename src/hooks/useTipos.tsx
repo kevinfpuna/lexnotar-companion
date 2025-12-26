@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { TipoCliente, TipoTrabajo, CampoCustom, PasoPredefinido, EstadoItem } from '@/types';
+import { TipoCliente, TipoTrabajo, EstadoItem } from '@/types';
 import { tiposClienteMock, tiposTrabajoMock } from '@/lib/mockData';
+import { useLocalStorage } from './useLocalStorage';
 
 // Estados de Kanban por defecto (los dos primeros y último son fijos)
 export const estadosKanbanDefault: { id: EstadoItem; nombre: string; color: string; fijo: boolean }[] = [
@@ -21,9 +21,10 @@ export interface EstadoKanban {
 }
 
 export function useTipos() {
-  const [tiposCliente, setTiposCliente] = useState<TipoCliente[]>(tiposClienteMock);
-  const [tiposTrabajo, setTiposTrabajo] = useState<TipoTrabajo[]>(tiposTrabajoMock);
-  const [estadosKanban, setEstadosKanban] = useState<EstadoKanban[]>(
+  const [tiposCliente, setTiposCliente] = useLocalStorage<TipoCliente[]>('lexnotar_tipos_cliente', tiposClienteMock);
+  const [tiposTrabajo, setTiposTrabajo] = useLocalStorage<TipoTrabajo[]>('lexnotar_tipos_trabajo_config', tiposTrabajoMock);
+  const [estadosKanban, setEstadosKanban] = useLocalStorage<EstadoKanban[]>(
+    'lexnotar_estados_kanban',
     estadosKanbanDefault.map((e, idx) => ({ ...e, id: e.id, orden: idx }))
   );
 
@@ -161,5 +162,10 @@ export function useTipos() {
     updateEstadoKanban,
     deleteEstadoKanban,
     reorderEstadosKanban,
+    
+    // Setters for backup
+    setTiposCliente,
+    setTiposTrabajo,
+    setEstadosKanban,
   };
 }

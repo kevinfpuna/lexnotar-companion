@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { CategoriaTrabajo } from '@/types';
+import { useLocalStorage } from './useLocalStorage';
 
 // Categorías por defecto
 export const categoriasDefault: CategoriaTrabajo[] = [
@@ -56,7 +56,7 @@ export const categoriasDefault: CategoriaTrabajo[] = [
 ];
 
 export function useCategorias() {
-  const [categorias, setCategorias] = useState<CategoriaTrabajo[]>(categoriasDefault);
+  const [categorias, setCategorias] = useLocalStorage<CategoriaTrabajo[]>('lexnotar_categorias', categoriasDefault);
 
   const addCategoria = (nombre: string, descripcion: string, color: string) => {
     const newCategoria: CategoriaTrabajo = {
@@ -106,5 +106,6 @@ export function useCategorias() {
     deleteCategoria,
     toggleCategoriaActivo,
     reorderCategorias,
+    setCategorias,
   };
 }

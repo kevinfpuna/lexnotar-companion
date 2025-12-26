@@ -1,18 +1,17 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Cliente, TipoCliente } from '@/types';
 import { 
   clientesMock as initialClientes, 
   tiposClienteMock,
-  trabajosMock 
 } from '@/lib/mockData';
 import { toast } from 'sonner';
-import { generateId, canDeleteCliente } from '@/lib/calculations';
+import { generateId } from '@/lib/calculations';
 import { ClienteFormData } from '@/lib/validations';
+import { useLocalStorage } from './useLocalStorage';
 
 export function useClientes() {
-  const [clientes, setClientes] = useState<Cliente[]>(initialClientes);
-  const [tiposCliente] = useState<TipoCliente[]>(tiposClienteMock);
-  const [isLoading, setIsLoading] = useState(false);
+  const [clientes, setClientes] = useLocalStorage<Cliente[]>('lexnotar_clientes', initialClientes);
+  const [tiposCliente, setTiposCliente] = useLocalStorage<TipoCliente[]>('lexnotar_tipos_cliente', tiposClienteMock);
 
   const getClienteById = useCallback((id: string) => {
     return clientes.find(c => c.id === id);
@@ -23,11 +22,6 @@ export function useClientes() {
   }, [tiposCliente]);
 
   const createCliente = useCallback(async (data: ClienteFormData): Promise<Cliente> => {
-    setIsLoading(true);
-    
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     const newCliente: Cliente = {
       id: generateId(),
       tipoClienteId: data.tipoClienteId,
@@ -45,15 +39,11 @@ export function useClientes() {
     };
     
     setClientes(prev => [...prev, newCliente]);
-    setIsLoading(false);
     toast.success('Cliente creado exitosamente');
     return newCliente;
-  }, []);
+  }, [setClientes]);
 
   const updateCliente = useCallback(async (id: string, data: Partial<ClienteFormData>): Promise<void> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     setClientes(prev => prev.map(c => 
       c.id === id 
         ? { 
@@ -64,11 +54,10 @@ export function useClientes() {
         : c
     ));
     
-    setIsLoading(false);
     toast.success('Cliente actualizado exitosamente');
-  }, []);
+  }, [setClientes]);
 
-  const toggleClienteEstado = useCallback(async (id: string): Promise<boolean> => {
+  const toggleClienteEstado = useCallback(async (id: string, trabajos: { clienteId: string; estado: string }[]): Promise<boolean> => {
     const cliente = clientes.find(c => c.id === id);
     if (!cliente) {
       toast.error('Cliente no encontrado');
@@ -77,14 +66,15 @@ export function useClientes() {
 
     // If trying to deactivate, check for active trabajos
     if (cliente.estado === 'activo') {
-      if (!canDeleteCliente(id, trabajosMock)) {
+      const trabajosActivos = trabajos.filter(
+        t => t.clienteId === id && 
+        (t.estado === 'En proceso' || t.estado === 'Pendiente')
+      );
+      if (trabajosActivos.length > 0) {
         toast.error('No se puede desactivar: el cliente tiene trabajos activos');
         return false;
       }
     }
-
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
     
     const newEstado = cliente.estado === 'activo' ? 'inactivo' : 'activo';
     
@@ -94,10 +84,9 @@ export function useClientes() {
         : c
     ));
     
-    setIsLoading(false);
     toast.success(`Cliente ${newEstado === 'activo' ? 'activado' : 'desactivado'} exitosamente`);
     return true;
-  }, [clientes]);
+  }, [clientes, setClientes]);
 
   const updateClienteDeuda = useCallback((id: string, deuda: number) => {
     setClientes(prev => prev.map(c => 
@@ -105,17 +94,18 @@ export function useClientes() {
         ? { ...c, deudaTotalActual: deuda, fechaUltimaActualizacion: new Date() }
         : c
     ));
-  }, []);
+  }, [setClientes]);
 
   return {
     clientes,
     tiposCliente,
-    isLoading,
     getClienteById,
     getTipoClienteById,
     createCliente,
     updateCliente,
     toggleClienteEstado,
     updateClienteDeuda,
+    setClientes,
+    setTiposCliente,
   };
 }
