@@ -50,28 +50,28 @@ export function StatCard({
 
   return (
     <div className={cn("stat-card animate-fade-in", className)}>
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold tracking-tight">{value}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 min-w-0 flex-1">
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{title}</p>
+          <p className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate">{value}</p>
           {subtitle && (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{subtitle}</p>
           )}
         </div>
-        <div className={cn("p-3 rounded-lg", styles.iconBg)}>
-          <Icon className={cn("h-6 w-6", styles.iconColor)} />
+        <div className={cn("p-2 sm:p-3 rounded-lg shrink-0", styles.iconBg)}>
+          <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6", styles.iconColor)} />
         </div>
       </div>
       
       {trend && (
-        <div className="mt-4 flex items-center gap-1 text-sm">
+        <div className="mt-3 flex items-center gap-1 text-xs sm:text-sm">
           <span className={cn(
             "font-medium",
             trend.value >= 0 ? "text-success" : "text-destructive"
           )}>
             {trend.value >= 0 ? '+' : ''}{trend.value}%
           </span>
-          <span className="text-muted-foreground">{trend.label}</span>
+          <span className="text-muted-foreground truncate">{trend.label}</span>
         </div>
       )}
     </div>

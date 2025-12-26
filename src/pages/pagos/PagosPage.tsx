@@ -30,7 +30,7 @@ import {
 import { StatCard } from '@/components/ui/stat-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useApp } from '@/contexts/AppContext';
-import { formatCurrency, formatDate } from '@/lib/mockData';
+import { formatCurrency, formatCurrencyCompact, formatDate } from '@/lib/mockData';
 import { MetodoPago } from '@/types';
 import { PagoForm } from '@/components/forms/PagoForm';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
@@ -149,32 +149,32 @@ export default function PagosPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <StatCard
           title="Deuda Total"
-          value={formatCurrency(deudaTotal)}
-          subtitle="Saldo pendiente"
+          value={formatCurrencyCompact(deudaTotal)}
+          subtitle="Pendiente"
           icon={Wallet}
           variant="destructive"
         />
         <StatCard
-          title="Cobrado este Mes"
-          value={formatCurrency(totalPagosMes)}
-          subtitle={`${pagosMes.length} pagos recibidos`}
+          title="Cobrado"
+          value={formatCurrencyCompact(totalPagosMes)}
+          subtitle={`${pagosMes.length} pagos`}
           icon={TrendingUp}
           variant="success"
         />
         <StatCard
-          title="Trabajos con Saldo"
+          title="Con Saldo"
           value={trabajosConDeuda.length}
-          subtitle="Pendientes de pago"
+          subtitle="Trabajos"
           icon={TrendingDown}
           variant="warning"
         />
         <StatCard
-          title="Clientes Deudores"
+          title="Deudores"
           value={clientesConDeuda.length}
-          subtitle="Con saldo pendiente"
+          subtitle="Clientes"
           icon={Wallet}
           variant="primary"
         />
@@ -191,129 +191,133 @@ export default function PagosPage() {
         <TabsContent value="cuentas" className="mt-4 space-y-6">
           {/* Clients with debt */}
           <div className="card-elevated overflow-hidden">
-            <div className="p-4 border-b border-border">
-              <h3 className="font-semibold">Clientes con Saldo Pendiente</h3>
+            <div className="p-3 md:p-4 border-b border-border">
+              <h3 className="font-semibold text-sm md:text-base">Clientes con Saldo Pendiente</h3>
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow className="table-header">
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Documento</TableHead>
-                  <TableHead>Trabajos Activos</TableHead>
-                  <TableHead className="text-right">Deuda Total</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {clientesConDeuda.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      No hay clientes con deuda
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="table-header">
+                    <TableHead className="min-w-[150px]">Cliente</TableHead>
+                    <TableHead className="hidden sm:table-cell">Documento</TableHead>
+                    <TableHead className="hidden md:table-cell">Trabajos</TableHead>
+                    <TableHead className="text-right">Deuda</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
-                ) : (
-                  clientesConDeuda.map((cliente) => {
-                    const trabajosCliente = trabajos.filter(
-                      t => t.clienteId === cliente.id && t.saldoPendiente > 0
-                    );
-                    
-                    return (
-                      <TableRow key={cliente.id}>
-                        <TableCell className="font-medium">{cliente.nombreCompleto}</TableCell>
-                        <TableCell>{cliente.documentoIdentidad}</TableCell>
-                        <TableCell>{trabajosCliente.length}</TableCell>
-                        <TableCell className="text-right font-semibold text-destructive">
-                          {formatCurrency(cliente.deudaTotalActual)}
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" asChild>
-                            <Link to={`/clientes/${cliente.id}`}>
-                              <ArrowUpRight className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {clientesConDeuda.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        No hay clientes con deuda
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    clientesConDeuda.map((cliente) => {
+                      const trabajosCliente = trabajos.filter(
+                        t => t.clienteId === cliente.id && t.saldoPendiente > 0
+                      );
+                      
+                      return (
+                        <TableRow key={cliente.id}>
+                          <TableCell className="font-medium text-sm">{cliente.nombreCompleto}</TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">{cliente.documentoIdentidad}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm">{trabajosCliente.length}</TableCell>
+                          <TableCell className="text-right font-semibold text-destructive text-sm">
+                            {formatCurrency(cliente.deudaTotalActual)}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                              <Link to={`/clientes/${cliente.id}`}>
+                                <ArrowUpRight className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
 
           {/* Works with debt */}
           <div className="card-elevated overflow-hidden">
-            <div className="p-4 border-b border-border">
-              <h3 className="font-semibold">Trabajos con Saldo Pendiente</h3>
+            <div className="p-3 md:p-4 border-b border-border">
+              <h3 className="font-semibold text-sm md:text-base">Trabajos con Saldo Pendiente</h3>
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow className="table-header">
-                  <TableHead>Trabajo</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead className="text-right">Costo Total</TableHead>
-                  <TableHead className="text-right">Pagado</TableHead>
-                  <TableHead className="text-right">Saldo</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {trabajosConDeuda.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No hay trabajos con saldo pendiente
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="table-header">
+                    <TableHead className="min-w-[150px]">Trabajo</TableHead>
+                    <TableHead className="hidden sm:table-cell">Cliente</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">Costo</TableHead>
+                    <TableHead className="text-right hidden lg:table-cell">Pagado</TableHead>
+                    <TableHead className="text-right">Saldo</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
-                ) : (
-                  trabajosConDeuda.map((trabajo) => {
-                    const cliente = getClienteById(trabajo.clienteId);
-                    
-                    return (
-                      <TableRow key={trabajo.id}>
-                        <TableCell className="font-medium">{trabajo.nombreTrabajo}</TableCell>
-                        <TableCell>{cliente?.nombreCompleto}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(trabajo.costoFinal)}</TableCell>
-                        <TableCell className="text-right text-success">
-                          {formatCurrency(trabajo.pagadoTotal)}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-destructive">
-                          {formatCurrency(trabajo.saldoPendiente)}
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" asChild>
-                            <Link to={`/trabajos/${trabajo.id}`}>
-                              <ArrowUpRight className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {trabajosConDeuda.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        No hay trabajos con saldo pendiente
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    trabajosConDeuda.map((trabajo) => {
+                      const cliente = getClienteById(trabajo.clienteId);
+                      
+                      return (
+                        <TableRow key={trabajo.id}>
+                          <TableCell className="font-medium text-sm">{trabajo.nombreTrabajo}</TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">{cliente?.nombreCompleto}</TableCell>
+                          <TableCell className="text-right hidden md:table-cell text-sm">{formatCurrency(trabajo.costoFinal)}</TableCell>
+                          <TableCell className="text-right text-success hidden lg:table-cell text-sm">
+                            {formatCurrency(trabajo.pagadoTotal)}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-destructive text-sm">
+                            {formatCurrency(trabajo.saldoPendiente)}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                              <Link to={`/trabajos/${trabajo.id}`}>
+                                <ArrowUpRight className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </TabsContent>
 
         {/* Historial de pagos */}
         <TabsContent value="historial" className="mt-4">
           {/* Filters */}
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por trabajo, cliente o referencia..."
+                placeholder="Buscar..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
               />
             </div>
             <Select value={metodoFilter} onValueChange={setMetodoFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[150px]">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Método" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos los métodos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {metodosPago.map((metodo) => (
                   <SelectItem key={metodo} value={metodo}>
                     {metodo}
@@ -324,55 +328,58 @@ export default function PagosPage() {
           </div>
 
           <div className="card-elevated overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="table-header">
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Trabajo</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Método</TableHead>
-                  <TableHead>Referencia</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPagos.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No se encontraron pagos
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="table-header">
+                    <TableHead className="min-w-[80px]">Fecha</TableHead>
+                    <TableHead className="min-w-[120px]">Trabajo</TableHead>
+                    <TableHead className="hidden md:table-cell">Cliente</TableHead>
+                    <TableHead className="hidden sm:table-cell">Método</TableHead>
+                    <TableHead className="hidden lg:table-cell">Ref.</TableHead>
+                    <TableHead className="text-right">Monto</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
-                ) : (
-                  filteredPagos.map((pago) => {
-                    const trabajo = getTrabajoById(pago.trabajoId);
-                    const cliente = trabajo ? getClienteById(trabajo.clienteId) : null;
-                    
-                    return (
-                      <TableRow key={pago.id}>
-                        <TableCell>{formatDate(pago.fechaPago)}</TableCell>
-                        <TableCell className="font-medium">{trabajo?.nombreTrabajo}</TableCell>
-                        <TableCell>{cliente?.nombreCompleto}</TableCell>
-                        <TableCell>{pago.metodoPago}</TableCell>
-                        <TableCell>{pago.referenciaPago || '-'}</TableCell>
-                        <TableCell className="text-right font-semibold text-success">
-                          {formatCurrency(pago.monto)}
-                        </TableCell>
-                        <TableCell>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => setDeletePagoId(pago.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredPagos.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        No se encontraron pagos
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredPagos.map((pago) => {
+                      const trabajo = getTrabajoById(pago.trabajoId);
+                      const cliente = trabajo ? getClienteById(trabajo.clienteId) : null;
+                      
+                      return (
+                        <TableRow key={pago.id}>
+                          <TableCell className="text-sm">{formatDate(pago.fechaPago)}</TableCell>
+                          <TableCell className="font-medium text-sm">{trabajo?.nombreTrabajo}</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm">{cliente?.nombreCompleto}</TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">{pago.metodoPago}</TableCell>
+                          <TableCell className="hidden lg:table-cell text-sm">{pago.referenciaPago || '-'}</TableCell>
+                          <TableCell className="text-right font-semibold text-success text-sm">
+                            {formatCurrency(pago.monto)}
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setDeletePagoId(pago.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </TabsContent>
       </Tabs>

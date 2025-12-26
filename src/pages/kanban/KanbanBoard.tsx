@@ -93,17 +93,17 @@ export default function KanbanBoard() {
   const selectedCliente = selectedTrabajo ? getClienteById(selectedTrabajo.clienteId) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Kanban de Pasos</h1>
-        <p className="text-muted-foreground mt-1">
-          Arrastra y suelta para cambiar el estado de los pasos
+        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Kanban de Pasos</h1>
+        <p className="text-muted-foreground text-sm md:text-base mt-1">
+          Arrastra y suelta para cambiar el estado
         </p>
       </div>
 
       {/* Kanban board */}
-      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
+      <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 scrollbar-thin -mx-4 px-4 md:mx-0 md:px-0">
         {columns.map((column) => {
           const columnItems = getItemsByStatus(column.id);
           const isDropTarget = dragOverColumn === column.id && draggedItemId !== null;
@@ -111,25 +111,25 @@ export default function KanbanBoard() {
           return (
             <div
               key={column.id}
-              className="flex-shrink-0 w-72"
+              className="flex-shrink-0 w-64 md:w-72"
               onDragOver={(e) => handleDragOver(e, column.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id)}
             >
               {/* Column header */}
               <div className={cn(
-                "rounded-t-lg border p-3 font-semibold flex items-center justify-between",
+                "rounded-t-lg border p-2.5 md:p-3 font-semibold flex items-center justify-between text-sm md:text-base",
                 column.color
               )}>
-                <span>{column.title}</span>
-                <span className="text-sm font-normal text-muted-foreground">
+                <span className="truncate">{column.title}</span>
+                <span className="text-xs md:text-sm font-normal text-muted-foreground ml-2">
                   {columnItems.length}
                 </span>
               </div>
 
               {/* Column content */}
               <div className={cn(
-                "rounded-b-lg border border-t-0 min-h-[500px] p-2 space-y-2 transition-all duration-200",
+                "rounded-b-lg border border-t-0 min-h-[400px] md:min-h-[500px] p-1.5 md:p-2 space-y-1.5 md:space-y-2 transition-all duration-200",
                 isDropTarget 
                   ? "bg-primary/10 border-primary border-dashed border-2" 
                   : "bg-muted/30"
@@ -147,32 +147,32 @@ export default function KanbanBoard() {
                       onDragEnd={handleDragEnd}
                       onClick={() => setSelectedItemId(item.id)}
                       className={cn(
-                        "bg-card rounded-lg border border-border p-3 cursor-grab active:cursor-grabbing",
+                        "bg-card rounded-lg border border-border p-2.5 md:p-3 cursor-grab active:cursor-grabbing",
                         "hover:shadow-md transition-all duration-200",
                         isDragging && "opacity-50 scale-105 rotate-2 shadow-lg"
                       )}
                     >
-                      <h4 className="font-medium text-sm mb-2">{item.nombreItem}</h4>
+                      <h4 className="font-medium text-xs md:text-sm mb-1.5 md:mb-2 truncate">{item.nombreItem}</h4>
                       
-                      <div className="space-y-1.5 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <User className="h-3 w-3" />
+                      <div className="space-y-1 text-[10px] md:text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3 shrink-0" />
                           <span className="truncate">{cliente?.nombreCompleto}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <Briefcase className="h-3 w-3" />
+                        <div className="flex items-center gap-1">
+                          <Briefcase className="h-3 w-3 shrink-0" />
                           <span className="truncate">{trabajo?.nombreTrabajo}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="h-3 w-3" />
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 shrink-0" />
                           <span>{item.diasEstimados} días</span>
                         </div>
                       </div>
 
                       {item.saldo > 0 && (
-                        <div className="mt-2 pt-2 border-t border-border">
-                          <span className="text-xs font-medium text-destructive">
-                            Saldo: {formatCurrency(item.saldo)}
+                        <div className="mt-1.5 md:mt-2 pt-1.5 md:pt-2 border-t border-border">
+                          <span className="text-[10px] md:text-xs font-medium text-destructive">
+                            {formatCurrency(item.saldo)}
                           </span>
                         </div>
                       )}
@@ -182,7 +182,7 @@ export default function KanbanBoard() {
 
                 {columnItems.length === 0 && (
                   <div className={cn(
-                    "h-24 flex items-center justify-center text-sm text-muted-foreground rounded-lg border-2 border-dashed",
+                    "h-20 md:h-24 flex items-center justify-center text-xs md:text-sm text-muted-foreground rounded-lg border-2 border-dashed",
                     isDropTarget ? "border-primary bg-primary/5" : "border-transparent"
                   )}>
                     {isDropTarget ? "Soltar aquí" : "Sin items"}

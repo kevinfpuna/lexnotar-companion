@@ -133,7 +133,7 @@ export default function TrabajosList() {
       </div>
 
       {/* Works list */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {filteredTrabajos.map((trabajo) => {
           const cliente = getClienteById(trabajo.clienteId);
           const tipoTrabajo = getTipoTrabajoById(trabajo.tipoTrabajoId);
@@ -144,65 +144,50 @@ export default function TrabajosList() {
             <Link
               key={trabajo.id}
               to={`/trabajos/${trabajo.id}`}
-              className="card-elevated p-5 block hover:shadow-elevated transition-shadow group"
+              className="card-elevated p-4 md:p-5 block hover:shadow-elevated transition-shadow group"
             >
-              <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                {/* Main info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                        {trabajo.nombreTrabajo}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        {cliente?.nombreCompleto} • {tipoTrabajo?.nombre}
-                      </p>
-                    </div>
-                    <StatusBadge status={trabajo.estado} />
-                  </div>
-                  
-                  <p className="text-sm text-muted-foreground mt-2 line-clamp-1">
-                    {trabajo.descripcionTrabajo}
-                  </p>
-                </div>
-
-                {/* Progress */}
-                <div className="lg:w-48">
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">Progreso</span>
-                    <span className="font-medium">{progress}%</span>
-                  </div>
-                  <Progress value={progress} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {items.filter(i => i.estado === 'Completado').length} de {items.length} pasos
-                  </p>
-                </div>
-
-                {/* Dates */}
-                <div className="flex items-center gap-4 lg:gap-6 text-sm">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      {formatDate(trabajo.fechaInicio)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">
-                      {formatDate(trabajo.fechaFinEstimada)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Financial */}
-                <div className="flex items-center gap-4 lg:w-48 justify-between lg:justify-end">
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Saldo</p>
-                    <p className={`font-semibold ${trabajo.saldoPendiente > 0 ? 'text-destructive' : 'text-success'}`}>
-                      {formatCurrency(trabajo.saldoPendiente)}
+              <div className="flex flex-col gap-3">
+                {/* Top row: Name + Status */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                      {trabajo.nombreTrabajo}
+                    </h3>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {cliente?.nombreCompleto} • {tipoTrabajo?.nombre}
                     </p>
                   </div>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <StatusBadge status={trabajo.estado} />
+                </div>
+
+                {/* Middle row: Progress (mobile visible) */}
+                <div className="flex items-center gap-3">
+                  <Progress value={progress} className="flex-1 h-2" />
+                  <span className="text-sm font-medium whitespace-nowrap">{progress}%</span>
+                </div>
+
+                {/* Bottom row: Dates + Financial */}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">{formatDate(trabajo.fechaInicio)}</span>
+                      <span className="sm:hidden">{formatDate(trabajo.fechaInicio)}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>{formatDate(trabajo.fechaFinEstimada)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {trabajo.saldoPendiente > 0 && (
+                      <span className="font-semibold text-destructive">
+                        {formatCurrency(trabajo.saldoPendiente)}
+                      </span>
+                    )}
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
                 </div>
               </div>
             </Link>
