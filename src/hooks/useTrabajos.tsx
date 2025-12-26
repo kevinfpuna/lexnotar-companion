@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Trabajo, Item, TipoTrabajo, EstadoTrabajo, EstadoItem } from '@/types';
 import { 
   trabajosMock as initialTrabajos, 
@@ -9,16 +9,15 @@ import { toast } from 'sonner';
 import { 
   generateId, 
   calculateTrabajoTotals, 
-  calculateTrabajoProgress,
   areAllItemsCompleted 
 } from '@/lib/calculations';
 import { TrabajoFormData, ItemFormData } from '@/lib/validations';
+import { useLocalStorage } from './useLocalStorage';
 
 export function useTrabajos() {
-  const [trabajos, setTrabajos] = useState<Trabajo[]>(initialTrabajos);
-  const [items, setItems] = useState<Item[]>(initialItems);
-  const [tiposTrabajo] = useState<TipoTrabajo[]>(tiposTrabajoMock);
-  const [isLoading, setIsLoading] = useState(false);
+  const [trabajos, setTrabajos] = useLocalStorage<Trabajo[]>('lexnotar_trabajos', initialTrabajos);
+  const [items, setItems] = useLocalStorage<Item[]>('lexnotar_items', initialItems);
+  const [tiposTrabajo, setTiposTrabajo] = useLocalStorage<TipoTrabajo[]>('lexnotar_tipos_trabajo', tiposTrabajoMock);
 
   const getTrabajoById = useCallback((id: string) => {
     return trabajos.find(t => t.id === id);
@@ -40,9 +39,6 @@ export function useTrabajos() {
     data: TrabajoFormData,
     customItems?: Partial<Item>[]
   ): Promise<Trabajo> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     const tipoTrabajo = tiposTrabajo.find(t => t.id === data.tipoTrabajoId);
     const trabajoId = generateId();
     
@@ -103,24 +99,19 @@ export function useTrabajos() {
     
     setTrabajos(prev => [...prev, newTrabajo]);
     setItems(prev => [...prev, ...newItems]);
-    setIsLoading(false);
     toast.success('Trabajo creado exitosamente');
     return newTrabajo;
-  }, [tiposTrabajo]);
+  }, [tiposTrabajo, setTrabajos, setItems]);
 
   const updateTrabajo = useCallback(async (id: string, data: Partial<Trabajo>): Promise<void> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     setTrabajos(prev => prev.map(t => 
       t.id === id 
         ? { ...t, ...data, fechaUltimaActualizacion: new Date() }
         : t
     ));
     
-    setIsLoading(false);
     toast.success('Trabajo actualizado exitosamente');
-  }, []);
+  }, [setTrabajos]);
 
   const updateTrabajoEstado = useCallback(async (id: string, estado: EstadoTrabajo): Promise<void> => {
     const trabajo = trabajos.find(t => t.id === id);
@@ -136,9 +127,6 @@ export function useTrabajos() {
       }
     }
     
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     const updates: Partial<Trabajo> = { 
       estado,
       fechaUltimaActualizacion: new Date(),
@@ -152,14 +140,10 @@ export function useTrabajos() {
       t.id === id ? { ...t, ...updates } : t
     ));
     
-    setIsLoading(false);
     toast.success('Estado actualizado');
-  }, [trabajos, items]);
+  }, [trabajos, items, setTrabajos]);
 
   const addItem = useCallback(async (trabajoId: string, data: ItemFormData): Promise<Item> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     const trabajoItems = items.filter(i => i.trabajoId === trabajoId);
     const maxPaso = Math.max(0, ...trabajoItems.map(i => i.numeroPaso));
     
@@ -192,15 +176,11 @@ export function useTrabajos() {
         : t
     ));
     
-    setIsLoading(false);
     toast.success('Paso agregado exitosamente');
     return newItem;
-  }, [items]);
+  }, [items, setItems, setTrabajos]);
 
   const updateItem = useCallback(async (itemId: string, data: Partial<Item>): Promise<void> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     let trabajoId = '';
     
     setItems(prev => prev.map(i => {
@@ -229,14 +209,10 @@ export function useTrabajos() {
       ));
     }
     
-    setIsLoading(false);
     toast.success('Paso actualizado');
-  }, [items]);
+  }, [items, setItems, setTrabajos]);
 
   const updateItemEstado = useCallback(async (itemId: string, estado: EstadoItem): Promise<void> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
     const item = items.find(i => i.id === itemId);
     
     // Warning if completing with balance
@@ -257,9 +233,8 @@ export function useTrabajos() {
       i.id === itemId ? { ...i, ...updates } : i
     ));
     
-    setIsLoading(false);
     toast.success('Estado actualizado');
-  }, [items]);
+  }, [items, setItems]);
 
   const deleteItem = useCallback(async (itemId: string, pagos: { itemId?: string }[]): Promise<boolean> => {
     const hasPagos = pagos.some(p => p.itemId === itemId);
@@ -268,9 +243,6 @@ export function useTrabajos() {
       toast.error('No se puede eliminar: el paso tiene pagos asociados');
       return false;
     }
-    
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
     
     const item = items.find(i => i.id === itemId);
     const trabajoId = item?.trabajoId;
@@ -289,10 +261,9 @@ export function useTrabajos() {
       ));
     }
     
-    setIsLoading(false);
     toast.success('Paso eliminado');
     return true;
-  }, [items]);
+  }, [items, setItems, setTrabajos]);
 
   // Update trabajo and client when payment is made
   const recalculateTrabajo = useCallback((trabajoId: string) => {
@@ -306,13 +277,12 @@ export function useTrabajos() {
     ));
     
     return totals;
-  }, [items]);
+  }, [items, setTrabajos]);
 
   return {
     trabajos,
     items,
     tiposTrabajo,
-    isLoading,
     getTrabajoById,
     getTipoTrabajoById,
     getItemsByTrabajoId,
@@ -327,5 +297,6 @@ export function useTrabajos() {
     recalculateTrabajo,
     setItems,
     setTrabajos,
+    setTiposTrabajo,
   };
 }

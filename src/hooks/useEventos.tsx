@@ -1,13 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { EventoCalendario } from '@/types';
 import { eventosMock as initialEventos } from '@/lib/mockData';
 import { toast } from 'sonner';
 import { generateId } from '@/lib/calculations';
 import { EventoFormData } from '@/lib/validations';
+import { useLocalStorage } from './useLocalStorage';
 
 export function useEventos() {
-  const [eventos, setEventos] = useState<EventoCalendario[]>(initialEventos);
-  const [isLoading, setIsLoading] = useState(false);
+  const [eventos, setEventos] = useLocalStorage<EventoCalendario[]>('lexnotar_eventos', initialEventos);
 
   const getEventosByTrabajoId = useCallback((trabajoId: string) => {
     return eventos.filter(e => e.trabajoId === trabajoId);
@@ -24,9 +24,6 @@ export function useEventos() {
   }, [eventos]);
 
   const createEvento = useCallback(async (data: EventoFormData): Promise<EventoCalendario> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     const newEvento: EventoCalendario = {
       id: generateId(),
       trabajoId: data.trabajoId || undefined,
@@ -35,44 +32,34 @@ export function useEventos() {
       fechaEvento: data.fechaEvento,
       descripcion: data.descripcion || '',
       recordatorioHorasAntes: data.recordatorioHorasAntes,
+      recordatorioMostrado: false, // Inicializar en false
       fechaCreacion: new Date(),
     };
     
     setEventos(prev => [...prev, newEvento]);
-    setIsLoading(false);
     toast.success('Evento creado exitosamente');
     return newEvento;
-  }, []);
+  }, [setEventos]);
 
   const updateEvento = useCallback(async (id: string, data: Partial<EventoFormData & Pick<EventoCalendario, 'recordatorioMostrado' | 'fechaEvento'>>): Promise<void> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     setEventos(prev => prev.map(e => 
       e.id === id ? { ...e, ...data } : e
     ));
     
-    setIsLoading(false);
     // Only show toast for user-initiated updates, not for recordatorio updates
     if (!('recordatorioMostrado' in data)) {
       toast.success('Evento actualizado');
     }
-  }, []);
+  }, [setEventos]);
 
   const deleteEvento = useCallback(async (id: string): Promise<boolean> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     setEventos(prev => prev.filter(e => e.id !== id));
-    
-    setIsLoading(false);
     toast.success('Evento eliminado');
     return true;
-  }, []);
+  }, [setEventos]);
 
   return {
     eventos,
-    isLoading,
     getEventosByTrabajoId,
     getEventosByDateRange,
     getUpcomingEventos,

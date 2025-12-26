@@ -1,13 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Pago } from '@/types';
 import { pagosMock as initialPagos } from '@/lib/mockData';
 import { toast } from 'sonner';
 import { generateId } from '@/lib/calculations';
 import { PagoFormData } from '@/lib/validations';
+import { useLocalStorage } from './useLocalStorage';
 
 export function usePagos() {
-  const [pagos, setPagos] = useState<Pago[]>(initialPagos);
-  const [isLoading, setIsLoading] = useState(false);
+  const [pagos, setPagos] = useLocalStorage<Pago[]>('lexnotar_pagos', initialPagos);
 
   const getPagosByTrabajoId = useCallback((trabajoId: string) => {
     return pagos.filter(p => p.trabajoId === trabajoId);
@@ -21,9 +21,6 @@ export function usePagos() {
     data: PagoFormData,
     onUpdateTrabajo?: (trabajoId: string, monto: number, itemId?: string) => void
   ): Promise<Pago> => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     const newPago: Pago = {
       id: generateId(),
       trabajoId: data.trabajoId,
@@ -43,10 +40,9 @@ export function usePagos() {
       onUpdateTrabajo(data.trabajoId, data.monto, data.itemId);
     }
     
-    setIsLoading(false);
     toast.success('Pago registrado exitosamente');
     return newPago;
-  }, []);
+  }, [setPagos]);
 
   const deletePago = useCallback(async (
     pagoId: string,
@@ -58,9 +54,6 @@ export function usePagos() {
       return false;
     }
     
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
     setPagos(prev => prev.filter(p => p.id !== pagoId));
     
     // Callback to update trabajo/item balances (negative to reverse)
@@ -68,14 +61,12 @@ export function usePagos() {
       onUpdateTrabajo(pago.trabajoId, -pago.monto, pago.itemId);
     }
     
-    setIsLoading(false);
     toast.success('Pago eliminado exitosamente');
     return true;
-  }, [pagos]);
+  }, [pagos, setPagos]);
 
   return {
     pagos,
-    isLoading,
     getPagosByTrabajoId,
     getPagosByItemId,
     createPago,

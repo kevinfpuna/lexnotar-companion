@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useState } from 'react';
 import { useClientes } from '@/hooks/useClientes';
 import { useTrabajos } from '@/hooks/useTrabajos';
 import { usePagos } from '@/hooks/usePagos';
@@ -9,11 +9,15 @@ type AppContextType = ReturnType<typeof useClientes> &
   ReturnType<typeof useTrabajos> & 
   ReturnType<typeof usePagos> &
   ReturnType<typeof useEventos> &
-  ReturnType<typeof useDocumentos>;
+  ReturnType<typeof useDocumentos> & {
+    isLoading: boolean;
+    setIsLoading: (loading: boolean) => void;
+  };
 
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const [isLoading, setIsLoading] = useState(false);
   const clientesHook = useClientes();
   const trabajosHook = useTrabajos();
   const pagosHook = usePagos();
@@ -26,6 +30,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ...pagosHook,
     ...eventosHook,
     ...documentosHook,
+    isLoading,
+    setIsLoading,
   };
 
   return (
