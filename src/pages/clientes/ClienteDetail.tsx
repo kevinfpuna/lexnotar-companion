@@ -9,7 +9,8 @@ import {
   Briefcase,
   Receipt,
   FileText,
-  Plus
+  Plus,
+  Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +27,12 @@ import {
 import { useApp } from '@/contexts/AppContext';
 import { ClienteForm } from '@/components/forms/ClienteForm';
 import { TrabajoForm } from '@/components/forms/TrabajoForm';
+import { DocumentoCard } from '@/components/documentos/DocumentoCard';
+import { DocumentoUpload } from '@/components/documentos/DocumentoUpload';
+import { DocumentoViewer } from '@/components/documentos/DocumentoViewer';
+import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
 import { formatCurrency, formatDate } from '@/lib/mockData';
+import { TipoDocumento } from '@/types';
 
 export default function ClienteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -42,11 +48,18 @@ export default function ClienteDetail() {
     tiposTrabajo,
     updateCliente,
     createTrabajo,
+    documentos,
+    getDocumentosByCliente,
+    createDocumento,
+    deleteDocumento,
     isLoading
   } = useApp();
 
   const [clienteFormOpen, setClienteFormOpen] = useState(false);
   const [trabajoFormOpen, setTrabajoFormOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [viewingDoc, setViewingDoc] = useState<typeof documentos[0] | null>(null);
+  const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
   
   const cliente = getClienteById(id || '');
   const tipoCliente = cliente ? getTipoClienteById(cliente.tipoClienteId) : undefined;
@@ -54,6 +67,7 @@ export default function ClienteDetail() {
   const pagosCliente = pagos.filter(p => 
     trabajos.some(t => t.id === p.trabajoId)
   );
+  const clienteDocumentos = cliente ? getDocumentosByCliente(cliente.id) : [];
 
   if (!cliente) {
     return (
@@ -75,6 +89,23 @@ export default function ClienteDetail() {
     const newTrabajo = await createTrabajo(data, items);
     setTrabajoFormOpen(false);
     navigate(`/trabajos/${newTrabajo.id}`);
+  };
+
+  const handleUploadDocumento = async (files: File[], metadata: { tipo: TipoDocumento; descripcion?: string }) => {
+    for (const file of files) {
+      await createDocumento(file, {
+        tipo: metadata.tipo,
+        descripcion: metadata.descripcion,
+        clienteId: cliente?.id,
+      });
+    }
+  };
+
+  const handleDeleteDocumento = async () => {
+    if (deleteDocId) {
+      await deleteDocumento(deleteDocId);
+      setDeleteDocId(null);
+    }
   };
 
   return (
@@ -281,16 +312,40 @@ export default function ClienteDetail() {
 
         {/* Documentos */}
         <TabsContent value="documentos" className="mt-4">
-          <div className="card-elevated p-8 text-center">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">Documentos del cliente</h3>
-            <p className="text-muted-foreground mb-4">
-              Adjunta documentos como CI, poderes, contratos, etc.
-            </p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Subir documento
-            </Button>
+          <div className="card-elevated overflow-hidden">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h3 className="font-semibold">Documentos del cliente</h3>
+              <Button size="sm" onClick={() => setUploadOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Subir documento
+              </Button>
+            </div>
+            
+            {clienteDocumentos.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                {clienteDocumentos.map((doc) => (
+                  <DocumentoCard
+                    key={doc.id}
+                    documento={doc}
+                    showAssociations={false}
+                    onView={setViewingDoc}
+                    onDelete={(d) => setDeleteDocId(d.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-2">Sin documentos</h3>
+                <p className="text-muted-foreground mb-4">
+                  Adjunta documentos como CI, poderes, contratos, etc.
+                </p>
+                <Button onClick={() => setUploadOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Subir documento
+                </Button>
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -321,6 +376,31 @@ export default function ClienteDetail() {
         clientes={clientes.filter(c => c.id === cliente.id)}
         tiposTrabajo={tiposTrabajo}
         onSubmit={handleCreateTrabajo}
+        isLoading={isLoading}
+      />
+
+      {/* Documento Upload */}
+      <DocumentoUpload
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        onUpload={handleUploadDocumento}
+        clienteId={cliente.id}
+        isLoading={isLoading}
+      />
+
+      {/* Documento Viewer */}
+      <DocumentoViewer
+        documento={viewingDoc}
+        onClose={() => setViewingDoc(null)}
+      />
+
+      {/* Delete Documento Confirm */}
+      <DeleteConfirmDialog
+        open={!!deleteDocId}
+        onOpenChange={(open) => !open && setDeleteDocId(null)}
+        onConfirm={handleDeleteDocumento}
+        title="Eliminar documento"
+        description="¿Estás seguro de que deseas eliminar este documento?"
         isLoading={isLoading}
       />
     </div>

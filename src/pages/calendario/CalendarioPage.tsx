@@ -1,29 +1,54 @@
-import { useState } from 'react';
-import { Calendar } from '@/components/ui/calendar';
+import { useState, useMemo } from 'react';
+import { 
+  addMonths, 
+  subMonths, 
+  addWeeks, 
+  subWeeks, 
+  addDays, 
+  subDays,
+  format,
+  isSameDay,
+} from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Clock, Briefcase, AlertCircle, Edit, Trash2 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Plus, 
+  ChevronLeft, 
+  ChevronRight, 
+  Calendar as CalendarIcon,
+  List,
+  FileText,
+  Download,
+} from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
-import { formatDate } from '@/lib/mockData';
 import { TipoEvento } from '@/types';
-import { cn } from '@/lib/utils';
 import { EventoForm } from '@/components/forms/EventoForm';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
+import { MonthView } from '@/components/calendario/MonthView';
+import { WeekView } from '@/components/calendario/WeekView';
+import { DayView } from '@/components/calendario/DayView';
+import { toast } from 'sonner';
 
-const tipoEventoStyles: Record<TipoEvento, { bg: string; text: string; icon: typeof Clock }> = {
-  'Inicio': { bg: 'bg-info/10', text: 'text-info', icon: Clock },
-  'Fin estimada': { bg: 'bg-warning/10', text: 'text-warning', icon: Clock },
-  'Fin real': { bg: 'bg-success/10', text: 'text-success', icon: Clock },
-  'Recordatorio': { bg: 'bg-primary/10', text: 'text-primary', icon: AlertCircle },
-  'Cita personal': { bg: 'bg-muted', text: 'text-muted-foreground', icon: Clock },
-  'Vencimiento': { bg: 'bg-destructive/10', text: 'text-destructive', icon: AlertCircle },
+type ViewType = 'mes' | 'semana' | 'dia';
+
+const tipoEventoStyles: Record<TipoEvento, { bg: string; text: string }> = {
+  'Inicio': { bg: 'bg-info/10', text: 'text-info' },
+  'Fin estimada': { bg: 'bg-warning/10', text: 'text-warning' },
+  'Fin real': { bg: 'bg-success/10', text: 'text-success' },
+  'Recordatorio': { bg: 'bg-primary/10', text: 'text-primary' },
+  'Cita personal': { bg: 'bg-muted', text: 'text-muted-foreground' },
+  'Vencimiento': { bg: 'bg-destructive/10', text: 'text-destructive' },
 };
 
 export default function CalendarioPage() {
   const { eventos, trabajos, createEvento, updateEvento, deleteEvento, isLoading } = useApp();
   
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [view, setView] = useState<ViewType>('mes');
   const [eventoFormOpen, setEventoFormOpen] = useState(false);
   const [editingEvento, setEditingEvento] = useState<string | null>(null);
   const [deleteEventoId, setDeleteEventoId] = useState<string | null>(null);
@@ -32,21 +57,58 @@ export default function CalendarioPage() {
   const getTrabajoById = (id: string) => trabajos.find(t => t.id === id);
 
   // Get events for selected date
-  const selectedDateEvents = selectedDate 
-    ? eventos.filter(e => 
-        e.fechaEvento.toDateString() === selectedDate.toDateString()
-      )
-    : [];
+  const selectedDateEvents = useMemo(() => {
+    if (!selectedDate) return [];
+    return eventos.filter(e => isSameDay(e.fechaEvento, selectedDate));
+  }, [eventos, selectedDate]);
 
-  // Get upcoming events (next 14 days)
-  const today = new Date();
-  const twoWeeksLater = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
-  const upcomingEvents = eventos
-    .filter(e => e.fechaEvento >= today && e.fechaEvento <= twoWeeksLater)
-    .sort((a, b) => a.fechaEvento.getTime() - b.fechaEvento.getTime());
+  // Navigation handlers
+  const goToToday = () => {
+    setCurrentDate(new Date());
+    setSelectedDate(new Date());
+  };
 
-  // Dates with events (for calendar highlighting)
-  const datesWithEvents = eventos.map(e => e.fechaEvento.toDateString());
+  const goToPrevious = () => {
+    switch (view) {
+      case 'mes':
+        setCurrentDate(subMonths(currentDate, 1));
+        break;
+      case 'semana':
+        setCurrentDate(subWeeks(currentDate, 1));
+        break;
+      case 'dia':
+        setCurrentDate(subDays(currentDate, 1));
+        setSelectedDate(subDays(currentDate, 1));
+        break;
+    }
+  };
+
+  const goToNext = () => {
+    switch (view) {
+      case 'mes':
+        setCurrentDate(addMonths(currentDate, 1));
+        break;
+      case 'semana':
+        setCurrentDate(addWeeks(currentDate, 1));
+        break;
+      case 'dia':
+        setCurrentDate(addDays(currentDate, 1));
+        setSelectedDate(addDays(currentDate, 1));
+        break;
+    }
+  };
+
+  // Format current date for display
+  const getNavigationLabel = () => {
+    switch (view) {
+      case 'mes':
+        return format(currentDate, 'MMMM yyyy', { locale: es });
+      case 'semana':
+        return `Semana del ${format(currentDate, 'd MMM', { locale: es })}`;
+      case 'dia':
+        return format(currentDate, 'PPP', { locale: es });
+    }
+  };
 
   // Handle create evento
   const handleCreateEvento = async (data: any) => {
@@ -70,6 +132,45 @@ export default function CalendarioPage() {
     }
   };
 
+  // Handle event drop (drag and drop)
+  const handleEventDrop = async (eventoId: string, newDate: Date) => {
+    await updateEvento(eventoId, { fechaEvento: newDate });
+    toast.success('Evento movido correctamente');
+  };
+
+  // Handle date click (to create event)
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
+    if (view === 'dia') {
+      setCurrentDate(date);
+    }
+  };
+
+  // Handle event click
+  const handleEventClick = (evento: typeof eventos[0]) => {
+    setEditingEvento(evento.id);
+  };
+
+  // Export to ICS
+  const exportToICS = () => {
+    let icsContent = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//LexNotar//ES\n';
+    
+    eventos.forEach(evento => {
+      const dtStart = format(evento.fechaEvento, "yyyyMMdd'T'HHmmss");
+      icsContent += `BEGIN:VEVENT\nUID:${evento.id}@lexnotar\nDTSTART:${dtStart}\nSUMMARY:${evento.tituloEvento}\nDESCRIPTION:${evento.descripcion || ''}\nEND:VEVENT\n`;
+    });
+    
+    icsContent += 'END:VCALENDAR';
+    
+    const blob = new Blob([icsContent], { type: 'text/calendar' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'calendario-lexnotar.ics';
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast.success('Calendario exportado');
+  };
+
   const editingEventoData = editingEvento ? eventos.find(e => e.id === editingEvento) : null;
 
   return (
@@ -82,137 +183,120 @@ export default function CalendarioPage() {
             Gestiona tus eventos y vencimientos
           </p>
         </div>
-        <Button onClick={() => setEventoFormOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Evento
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToICS}>
+            <Download className="h-4 w-4 mr-2" />
+            Exportar
+          </Button>
+          <Button onClick={() => setEventoFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Evento
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar */}
-        <Card className="p-4">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            className="rounded-md pointer-events-auto"
-            modifiers={{
-              hasEvent: (date) => datesWithEvents.includes(date.toDateString())
-            }}
-            modifiersStyles={{
-              hasEvent: { 
-                backgroundColor: 'hsl(var(--primary) / 0.1)', 
-                fontWeight: 'bold' 
-              }
-            }}
-          />
-        </Card>
+      {/* View tabs and navigation */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <Tabs value={view} onValueChange={(v) => setView(v as ViewType)}>
+          <TabsList>
+            <TabsTrigger value="mes">
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Mes
+            </TabsTrigger>
+            <TabsTrigger value="semana">
+              <List className="h-4 w-4 mr-2" />
+              Semana
+            </TabsTrigger>
+            <TabsTrigger value="dia">
+              <FileText className="h-4 w-4 mr-2" />
+              Día
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-        {/* Selected date events */}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={goToToday}>
+            Hoy
+          </Button>
+          <Button variant="outline" size="icon" onClick={goToPrevious}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="font-medium min-w-[180px] text-center capitalize">
+            {getNavigationLabel()}
+          </span>
+          <Button variant="outline" size="icon" onClick={goToNext}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Calendar views */}
+      {view === 'mes' && (
+        <MonthView
+          currentDate={currentDate}
+          eventos={eventos}
+          selectedDate={selectedDate}
+          onDateClick={handleDateClick}
+          onEventClick={handleEventClick}
+          onEventDrop={handleEventDrop}
+        />
+      )}
+
+      {view === 'semana' && (
+        <WeekView
+          currentDate={currentDate}
+          eventos={eventos}
+          selectedDate={selectedDate}
+          onDateClick={handleDateClick}
+          onEventClick={handleEventClick}
+        />
+      )}
+
+      {view === 'dia' && selectedDate && (
+        <DayView
+          date={selectedDate}
+          eventos={selectedDateEvents}
+          onEventClick={handleEventClick}
+          trabajos={trabajos}
+        />
+      )}
+
+      {/* Upcoming events sidebar for month/week view */}
+      {view !== 'dia' && (
         <Card className="p-4">
           <h3 className="font-semibold mb-4">
-            {selectedDate ? formatDate(selectedDate) : 'Selecciona una fecha'}
+            {selectedDate ? format(selectedDate, 'PPP', { locale: es }) : 'Selecciona una fecha'}
           </h3>
           
-          <div className="space-y-3">
+          <div className="space-y-2">
             {selectedDateEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
+              <p className="text-sm text-muted-foreground text-center py-4">
                 No hay eventos para esta fecha
               </p>
             ) : (
               selectedDateEvents.map((evento) => {
                 const trabajo = evento.trabajoId ? getTrabajoById(evento.trabajoId) : null;
                 const style = tipoEventoStyles[evento.tipoEvento];
-                const IconComponent = style.icon;
 
                 return (
                   <div 
                     key={evento.id}
-                    className={cn(
-                      "p-3 rounded-lg border relative group",
-                      style.bg
-                    )}
+                    className={`p-3 rounded-lg border cursor-pointer hover:ring-2 ring-primary/50 transition-all ${style.bg}`}
+                    onClick={() => handleEventClick(evento)}
                   >
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-7 w-7"
-                        onClick={() => setEditingEvento(evento.id)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-7 w-7"
-                        onClick={() => setDeleteEventoId(evento.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <IconComponent className={cn("h-4 w-4 mt-0.5", style.text)} />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{evento.tituloEvento}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {evento.descripcion}
-                        </p>
-                        {trabajo && (
-                          <div className="flex items-center gap-1 mt-2">
-                            <Briefcase className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">
-                              {trabajo.nombreTrabajo}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="mt-2 text-xs">
-                      {evento.tipoEvento}
-                    </Badge>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </Card>
-
-        {/* Upcoming events */}
-        <Card className="p-4">
-          <h3 className="font-semibold mb-4">Próximos 14 días</h3>
-          
-          <div className="space-y-3 max-h-[400px] overflow-y-auto scrollbar-thin">
-            {upcomingEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No hay eventos próximos
-              </p>
-            ) : (
-              upcomingEvents.map((evento) => {
-                const trabajo = evento.trabajoId ? getTrabajoById(evento.trabajoId) : null;
-                const style = tipoEventoStyles[evento.tipoEvento];
-                const isToday = evento.fechaEvento.toDateString() === today.toDateString();
-
-                return (
-                  <div 
-                    key={evento.id}
-                    className={cn(
-                      "p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer",
-                      isToday && "ring-2 ring-primary"
-                    )}
-                    onClick={() => setSelectedDate(evento.fechaEvento)}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={cn("text-xs font-medium", style.text)}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-medium ${style.text}`}>
                         {evento.tipoEvento}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDate(evento.fechaEvento)}
-                      </span>
+                      {evento.horaEvento && (
+                        <span className="text-xs text-muted-foreground">
+                          {evento.horaEvento}
+                        </span>
+                      )}
                     </div>
-                    <p className="font-medium text-sm">{evento.tituloEvento}</p>
+                    <p className="font-medium text-sm mt-1">{evento.tituloEvento}</p>
                     {trabajo && (
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                      <p className="text-xs text-muted-foreground mt-1">
                         {trabajo.nombreTrabajo}
                       </p>
                     )}
@@ -221,8 +305,17 @@ export default function CalendarioPage() {
               })
             )}
           </div>
+          
+          <Button 
+            variant="outline" 
+            className="w-full mt-4"
+            onClick={() => setEventoFormOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Agregar evento
+          </Button>
         </Card>
-      </div>
+      )}
 
       {/* Evento Form - Create */}
       <EventoForm
@@ -232,6 +325,7 @@ export default function CalendarioPage() {
         onSubmit={handleCreateEvento}
         isLoading={isLoading}
         mode="create"
+        defaultValues={selectedDate ? { fechaEvento: selectedDate } : undefined}
       />
 
       {/* Evento Form - Edit */}

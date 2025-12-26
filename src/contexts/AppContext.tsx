@@ -3,11 +3,13 @@ import { useClientes } from '@/hooks/useClientes';
 import { useTrabajos } from '@/hooks/useTrabajos';
 import { usePagos } from '@/hooks/usePagos';
 import { useEventos } from '@/hooks/useEventos';
+import { useDocumentos } from '@/hooks/useDocumentos';
 
 type AppContextType = ReturnType<typeof useClientes> & 
   ReturnType<typeof useTrabajos> & 
   ReturnType<typeof usePagos> &
-  ReturnType<typeof useEventos>;
+  ReturnType<typeof useEventos> &
+  ReturnType<typeof useDocumentos>;
 
 const AppContext = createContext<AppContextType | null>(null);
 
@@ -16,12 +18,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const trabajosHook = useTrabajos();
   const pagosHook = usePagos();
   const eventosHook = useEventos();
+  const documentosHook = useDocumentos();
 
   const value: AppContextType = {
     ...clientesHook,
     ...trabajosHook,
     ...pagosHook,
     ...eventosHook,
+    ...documentosHook,
   };
 
   return (

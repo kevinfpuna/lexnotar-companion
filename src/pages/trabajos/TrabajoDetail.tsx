@@ -11,7 +11,8 @@ import {
   Trash2,
   Receipt,
   Download,
-  ChevronDown
+  ChevronDown,
+  Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -35,10 +36,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/contexts/AppContext';
 import { formatCurrency, formatDate, profesionalMock } from '@/lib/mockData';
-import { EstadoItem, EstadoTrabajo } from '@/types';
+import { EstadoItem, EstadoTrabajo, TipoDocumento } from '@/types';
 import { ItemForm } from '@/components/forms/ItemForm';
 import { PagoForm } from '@/components/forms/PagoForm';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
+import { DocumentoCard } from '@/components/documentos/DocumentoCard';
+import { DocumentoUpload } from '@/components/documentos/DocumentoUpload';
+import { DocumentoViewer } from '@/components/documentos/DocumentoViewer';
 import { applyPagoToItem, distributeGeneralPago, calculateClienteDeuda } from '@/lib/calculations';
 import { toast } from 'sonner';
 import { generateTrabajoPDF } from '@/lib/pdfGenerator';
@@ -81,6 +85,10 @@ export default function TrabajoDetail() {
     recalculateTrabajo,
     updateCliente,
     setItems,
+    documentos,
+    getDocumentosByTrabajo,
+    createDocumento,
+    deleteDocumento,
     isLoading
   } = useApp();
   
@@ -91,12 +99,16 @@ export default function TrabajoDetail() {
   const [deletePagoId, setDeletePagoId] = useState<string | null>(null);
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfTipo, setPdfTipo] = useState<'presupuesto' | 'factura'>('presupuesto');
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [viewingDoc, setViewingDoc] = useState<typeof documentos[0] | null>(null);
+  const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
   
   const trabajo = getTrabajoById(id || '');
   const cliente = trabajo ? clientes.find(c => c.id === trabajo.clienteId) : undefined;
   const tipoTrabajo = trabajo ? tiposTrabajo.find(t => t.id === trabajo.tipoTrabajoId) : undefined;
   const trabajoItems = trabajo ? getItemsByTrabajoId(trabajo.id) : [];
   const trabajoPagos = trabajo ? pagos.filter(p => p.trabajoId === trabajo.id) : [];
+  const trabajoDocumentos = trabajo ? getDocumentosByTrabajo(trabajo.id) : [];
 
   if (!trabajo) {
     return (
@@ -508,16 +520,40 @@ export default function TrabajoDetail() {
 
         {/* Documentos tab */}
         <TabsContent value="documentos" className="mt-4">
-          <div className="card-elevated p-8 text-center">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">Documentos del trabajo</h3>
-            <p className="text-muted-foreground mb-4">
-              Adjunta documentos relacionados a este trabajo
-            </p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Subir documento
-            </Button>
+          <div className="card-elevated overflow-hidden">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h3 className="font-semibold">Documentos del trabajo</h3>
+              <Button size="sm" onClick={() => setUploadOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Subir documento
+              </Button>
+            </div>
+            
+            {trabajoDocumentos.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                {trabajoDocumentos.map((doc) => (
+                  <DocumentoCard
+                    key={doc.id}
+                    documento={doc}
+                    showAssociations={false}
+                    onView={setViewingDoc}
+                    onDelete={(d) => setDeleteDocId(d.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-2">Sin documentos</h3>
+                <p className="text-muted-foreground mb-4">
+                  Adjunta documentos relacionados a este trabajo
+                </p>
+                <Button onClick={() => setUploadOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Subir documento
+                </Button>
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -630,6 +666,44 @@ export default function TrabajoDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Documento Upload */}
+      <DocumentoUpload
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        onUpload={async (files, metadata) => {
+          for (const file of files) {
+            await createDocumento(file, {
+              tipo: metadata.tipo,
+              descripcion: metadata.descripcion,
+              trabajoId: trabajo.id,
+            });
+          }
+        }}
+        trabajoId={trabajo.id}
+        isLoading={isLoading}
+      />
+
+      {/* Documento Viewer */}
+      <DocumentoViewer
+        documento={viewingDoc}
+        onClose={() => setViewingDoc(null)}
+      />
+
+      {/* Delete Documento Confirm */}
+      <DeleteConfirmDialog
+        open={!!deleteDocId}
+        onOpenChange={(open) => !open && setDeleteDocId(null)}
+        onConfirm={async () => {
+          if (deleteDocId) {
+            await deleteDocumento(deleteDocId);
+            setDeleteDocId(null);
+          }
+        }}
+        title="Eliminar documento"
+        description="¿Estás seguro de que deseas eliminar este documento?"
+        isLoading={isLoading}
+      />
     </div>
   );
 }
