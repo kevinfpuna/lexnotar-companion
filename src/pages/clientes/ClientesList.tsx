@@ -168,7 +168,7 @@ export default function ClientesList() {
       </div>
 
       {/* Clients grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
         {filteredClientes.map((cliente) => {
           const tipoCliente = getTipoClienteById(cliente.tipoClienteId);
           const trabajos = getTrabajosByClienteId(cliente.id);
@@ -179,25 +179,25 @@ export default function ClientesList() {
             <Link
               key={cliente.id}
               to={`/clientes/${cliente.id}`}
-              className="card-elevated p-5 hover:shadow-elevated transition-shadow group"
+              className="card-elevated p-4 hover:shadow-elevated transition-shadow group"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <IconComponent className="h-5 w-5 text-primary" />
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <IconComponent className="h-4 w-4 text-primary" />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate text-sm md:text-base">
                       {cliente.nombreCompleto}
                     </h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs md:text-sm text-muted-foreground truncate">
                       {tipoCliente?.nombre} • {cliente.documentoIdentidad}
                     </p>
                   </div>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -218,22 +218,22 @@ export default function ClientesList() {
                 </DropdownMenu>
               </div>
 
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Phone className="h-4 w-4" />
-                  <span>{cliente.telefono}</span>
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                  <Phone className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{cliente.telefono}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Mail className="h-4 w-4" />
+                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">{cliente.email}</span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {trabajosActivos > 0 && (
                     <Badge variant="secondary" className="text-xs">
-                      {trabajosActivos} trabajo{trabajosActivos > 1 ? 's' : ''} activo{trabajosActivos > 1 ? 's' : ''}
+                      {trabajosActivos} activo{trabajosActivos > 1 ? 's' : ''}
                     </Badge>
                   )}
                   <Badge 
@@ -244,7 +244,7 @@ export default function ClientesList() {
                   </Badge>
                 </div>
                 {cliente.deudaTotalActual > 0 && (
-                  <span className="text-sm font-semibold text-destructive">
+                  <span className="text-xs md:text-sm font-semibold text-destructive whitespace-nowrap">
                     {formatCurrency(cliente.deudaTotalActual)}
                   </span>
                 )}

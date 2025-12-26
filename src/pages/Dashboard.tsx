@@ -14,7 +14,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/contexts/AppContext';
-import { formatCurrency, formatDate } from '@/lib/mockData';
+import { formatCurrency, formatCurrencyCompact, formatDate } from '@/lib/mockData';
 import { TrabajoForm } from '@/components/forms/TrabajoForm';
 
 export default function Dashboard() {
@@ -81,15 +81,15 @@ export default function Dashboard() {
       </div>
 
       {/* Stats grid - Clickable */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <div 
           onClick={() => navigate('/pagos')}
           className="cursor-pointer hover:shadow-md transition-shadow rounded-lg"
         >
           <StatCard
             title="Deuda Total"
-            value={formatCurrency(deudaTotal)}
-            subtitle="Saldo pendiente de cobro"
+            value={formatCurrencyCompact(deudaTotal)}
+            subtitle="Pendiente"
             icon={Wallet}
             variant="destructive"
           />
@@ -99,9 +99,9 @@ export default function Dashboard() {
           className="cursor-pointer hover:shadow-md transition-shadow rounded-lg"
         >
           <StatCard
-            title="Trabajos Activos"
+            title="Activos"
             value={trabajosActivos}
-            subtitle="En proceso actualmente"
+            subtitle="En proceso"
             icon={Briefcase}
             variant="primary"
           />
@@ -111,7 +111,7 @@ export default function Dashboard() {
           className="cursor-pointer hover:shadow-md transition-shadow rounded-lg"
         >
           <StatCard
-            title="Trabajos Pendientes"
+            title="Pendientes"
             value={trabajosPendientes}
             subtitle="Por iniciar"
             icon={Clock}
@@ -123,9 +123,9 @@ export default function Dashboard() {
           className="cursor-pointer hover:shadow-md transition-shadow rounded-lg"
         >
           <StatCard
-            title="Completados este Mes"
+            title="Completados"
             value={trabajosCompletadosMes}
-            subtitle="Trabajos finalizados"
+            subtitle="Este mes"
             icon={CheckCircle2}
             variant="success"
           />

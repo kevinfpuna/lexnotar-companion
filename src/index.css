@@ -144,7 +144,7 @@
   }
 
   .stat-card {
-    @apply bg-card rounded-xl border border-border p-6 shadow-card transition-shadow hover:shadow-md;
+    @apply bg-card rounded-xl border border-border p-3 sm:p-4 md:p-5 shadow-card transition-shadow hover:shadow-md;
   }
 
   .status-badge {

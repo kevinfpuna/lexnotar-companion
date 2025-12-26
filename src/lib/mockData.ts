@@ -399,7 +399,7 @@ export const getTrabajosByClienteId = (clienteId: string): Trabajo[] =>
 export const getEventosByTrabajoId = (trabajoId: string): EventoCalendario[] => 
   eventosMock.filter(e => e.trabajoId === trabajoId);
 
-// Format currency
+// Format currency - full format with symbol
 export const formatCurrency = (amount: number, currency: 'PYG' | 'USD' = 'PYG'): string => {
   if (currency === 'PYG') {
     return new Intl.NumberFormat('es-PY', { 
@@ -415,6 +415,37 @@ export const formatCurrency = (amount: number, currency: 'PYG' | 'USD' = 'PYG'):
   }).format(amount);
 };
 
+// Format currency compact - for stats (22.5M instead of 22.500.000)
+export const formatCurrencyCompact = (amount: number, currency: 'PYG' | 'USD' = 'PYG'): string => {
+  const absAmount = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+  
+  if (currency === 'PYG') {
+    if (absAmount >= 1_000_000_000) {
+      return `${sign}Gs. ${(absAmount / 1_000_000_000).toFixed(1)}B`;
+    }
+    if (absAmount >= 1_000_000) {
+      return `${sign}Gs. ${(absAmount / 1_000_000).toFixed(1)}M`;
+    }
+    if (absAmount >= 1_000) {
+      return `${sign}Gs. ${(absAmount / 1_000).toFixed(0)}K`;
+    }
+    return `${sign}Gs. ${absAmount}`;
+  }
+  
+  // USD
+  if (absAmount >= 1_000_000_000) {
+    return `${sign}$${(absAmount / 1_000_000_000).toFixed(1)}B`;
+  }
+  if (absAmount >= 1_000_000) {
+    return `${sign}$${(absAmount / 1_000_000).toFixed(1)}M`;
+  }
+  if (absAmount >= 1_000) {
+    return `${sign}$${(absAmount / 1_000).toFixed(1)}K`;
+  }
+  return `${sign}$${absAmount}`;
+};
+
 // Format date
 export const formatDate = (date: Date | undefined): string => {
   if (!date) return '-';
@@ -422,5 +453,14 @@ export const formatDate = (date: Date | undefined): string => {
     day: '2-digit', 
     month: '2-digit', 
     year: 'numeric' 
+  }).format(date);
+};
+
+// Format date short (for mobile)
+export const formatDateShort = (date: Date | undefined): string => {
+  if (!date) return '-';
+  return new Intl.DateTimeFormat('es-PY', { 
+    day: '2-digit', 
+    month: 'short'
   }).format(date);
 };
