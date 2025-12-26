@@ -534,7 +534,8 @@ export default function TrabajoDetail() {
             <TrabajoTimeline 
               trabajo={trabajo} 
               items={trabajoItems} 
-              pagos={trabajoPagos} 
+              pagos={trabajoPagos}
+              clienteNombre={cliente?.nombreCompleto}
             />
           </div>
         </TabsContent>
