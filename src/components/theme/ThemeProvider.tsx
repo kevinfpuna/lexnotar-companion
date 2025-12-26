@@ -1,5 +1,6 @@
 import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
+import { useConfiguracion } from "@/hooks/useConfiguracion";
 
 interface ThemeProviderProps {
   children: ReactNode;
@@ -20,7 +21,20 @@ export function ThemeProvider({
       disableTransitionOnChange
       {...props}
     >
+      <ThemeSync />
       {children}
     </NextThemesProvider>
   );
+}
+
+// Component to sync theme with useConfiguracion
+function ThemeSync() {
+  const { config, updateConfig } = useConfiguracion();
+  
+  // This component doesn't render anything, just syncs the theme
+  useEffect(() => {
+    // Initial sync is handled by next-themes storage
+  }, [config.tema]);
+  
+  return null;
 }

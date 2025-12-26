@@ -21,6 +21,17 @@ export function generateTrabajoPDF(options: PDFOptions): void {
   const primaryColor: [number, number, number] = [34, 47, 82];
   const textColor: [number, number, number] = [50, 50, 50];
 
+  // Logo en esquina superior izquierda
+  let headerStartX = 14;
+  if (profesional.logoBase64) {
+    try {
+      doc.addImage(profesional.logoBase64, 'PNG', 14, 10, 30, 30);
+      headerStartX = 50;
+    } catch (error) {
+      console.error('Error adding logo to PDF:', error);
+    }
+  }
+
   // Header
   doc.setFontSize(22);
   doc.setTextColor(...primaryColor);
@@ -166,6 +177,15 @@ export function generateTrabajoPDF(options: PDFOptions): void {
 
   // Signature area (for invoice)
   if (tipo === 'factura') {
+    // Firma digital si existe
+    if (profesional.firmaBase64) {
+      try {
+        doc.addImage(profesional.firmaBase64, 'PNG', 80, footerY - 40, 50, 20);
+      } catch (error) {
+        console.error('Error adding signature to PDF:', error);
+      }
+    }
+    
     doc.setDrawColor(200, 200, 200);
     doc.line(70, footerY - 20, 140, footerY - 20);
     doc.setFontSize(9);

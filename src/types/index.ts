@@ -18,7 +18,9 @@ export interface Profesional {
   apellido: string;
   cedula: string;
   logoUrl?: string;
+  logoBase64?: string;
   firmaDigitalPath?: string;
+  firmaBase64?: string;
   telefono: string;
   email: string;
   domicilio: string;

@@ -3,6 +3,8 @@ import { Moon, Sun, Monitor, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useConfiguracion } from "@/hooks/useConfiguracion";
+import { useEffect } from "react";
 
 const themes = [
   {
@@ -27,6 +29,20 @@ const themes = [
 
 export function ThemeSelector() {
   const { theme, setTheme } = useTheme();
+  const { config, updateConfig } = useConfiguracion();
+
+  // Sync with useConfiguracion when theme changes
+  const handleThemeChange = (value: string) => {
+    setTheme(value);
+    updateConfig({ tema: value as 'light' | 'dark' | 'system' }, true);
+  };
+
+  // Sync theme from config on mount
+  useEffect(() => {
+    if (config.tema && config.tema !== theme) {
+      setTheme(config.tema);
+    }
+  }, []);
 
   return (
     <Card className="p-6">
@@ -50,7 +66,7 @@ export function ThemeSelector() {
           return (
             <button
               key={t.value}
-              onClick={() => setTheme(t.value)}
+              onClick={() => handleThemeChange(t.value)}
               className={cn(
                 "relative flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
                 "hover:bg-muted/50",
