@@ -1,15 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Upload, 
   FileText, 
-  Image, 
-  File, 
   Search,
   Filter,
-  FolderOpen,
-  Download,
-  Trash2,
-  Eye
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,37 +15,103 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card } from '@/components/ui/card';
 import { TipoDocumento } from '@/types';
+import { useApp } from '@/contexts/AppContext';
+import { DocumentoCard } from '@/components/documentos/DocumentoCard';
+import { DocumentoUpload } from '@/components/documentos/DocumentoUpload';
+import { DocumentoViewer } from '@/components/documentos/DocumentoViewer';
+import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
+import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
+import { DateRange } from 'react-day-picker';
 
 const tiposDocumento: TipoDocumento[] = ['CI', 'Poder', 'Título', 'Contrato', 'Presupuesto', 'Acta', 'Sentencia', 'Comprobante pago', 'Otro'];
 
-// Mock documents
-const documentosMock = [
-  { id: '1', nombre: 'CI Juan Carlos Pérez.pdf', tipo: 'CI' as TipoDocumento, cliente: 'Juan Carlos Pérez', fecha: new Date('2024-12-01'), size: 245 },
-  { id: '2', nombre: 'Título Propiedad Lote 15.pdf', tipo: 'Título' as TipoDocumento, trabajo: 'Compraventa Lote 15', fecha: new Date('2024-11-20'), size: 1240 },
-  { id: '3', nombre: 'Poder Especial Bancario.docx', tipo: 'Poder' as TipoDocumento, trabajo: 'Poder especial - Banco Continental', fecha: new Date('2024-12-02'), size: 89 },
-  { id: '4', nombre: 'Presupuesto Sucesión.pdf', tipo: 'Presupuesto' as TipoDocumento, trabajo: 'Sucesión García Ramírez', fecha: new Date('2024-08-16'), size: 156 },
-  { id: '5', nombre: 'Partida Defunción.pdf', tipo: 'Otro' as TipoDocumento, trabajo: 'Sucesión García Ramírez', fecha: new Date('2024-08-15'), size: 320 },
-];
-
-const getFileIcon = (nombre: string) => {
-  if (nombre.endsWith('.pdf')) return FileText;
-  if (nombre.match(/\.(jpg|jpeg|png|gif)$/i)) return Image;
-  return File;
-};
-
 export default function DocumentosPage() {
+  const { 
+    documentos, 
+    clientes, 
+    trabajos, 
+    createDocumento, 
+    deleteDocumento,
+    isLoading 
+  } = useApp();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [tipoFilter, setTipoFilter] = useState<string>('all');
+  const [clienteFilter, setClienteFilter] = useState<string>('all');
+  const [trabajoFilter, setTrabajoFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [viewingDoc, setViewingDoc] = useState<typeof documentos[0] | null>(null);
+  const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
 
-  const filteredDocs = documentosMock.filter(doc => {
-    const matchesSearch = doc.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.cliente?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.trabajo?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTipo = tipoFilter === 'all' || doc.tipo === tipoFilter;
-    return matchesSearch && matchesTipo;
-  });
+  // Get client/trabajo names for display
+  const getClienteNombre = (clienteId?: string) => {
+    if (!clienteId) return undefined;
+    return clientes.find(c => c.id === clienteId)?.nombreCompleto;
+  };
+
+  const getTrabajoNombre = (trabajoId?: string) => {
+    if (!trabajoId) return undefined;
+    return trabajos.find(t => t.id === trabajoId)?.nombreTrabajo;
+  };
+
+  // Filter documents
+  const filteredDocs = useMemo(() => {
+    return documentos.filter(doc => {
+      // Search filter
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch = !searchQuery || 
+        doc.nombre.toLowerCase().includes(searchLower) ||
+        doc.descripcion?.toLowerCase().includes(searchLower) ||
+        getClienteNombre(doc.clienteId)?.toLowerCase().includes(searchLower) ||
+        getTrabajoNombre(doc.trabajoId)?.toLowerCase().includes(searchLower);
+      
+      // Type filter
+      const matchesTipo = tipoFilter === 'all' || doc.tipo === tipoFilter;
+      
+      // Client filter
+      const matchesCliente = clienteFilter === 'all' || doc.clienteId === clienteFilter;
+      
+      // Trabajo filter
+      const matchesTrabajo = trabajoFilter === 'all' || doc.trabajoId === trabajoFilter;
+      
+      // Date range filter
+      const matchesDate = !dateRange?.from || !dateRange?.to || (
+        doc.fechaSubida >= dateRange.from && 
+        doc.fechaSubida <= dateRange.to
+      );
+      
+      return matchesSearch && matchesTipo && matchesCliente && matchesTrabajo && matchesDate;
+    });
+  }, [documentos, searchQuery, tipoFilter, clienteFilter, trabajoFilter, dateRange, clientes, trabajos]);
+
+  const hasActiveFilters = tipoFilter !== 'all' || clienteFilter !== 'all' || trabajoFilter !== 'all' || dateRange !== undefined;
+
+  const clearFilters = () => {
+    setTipoFilter('all');
+    setClienteFilter('all');
+    setTrabajoFilter('all');
+    setDateRange(undefined);
+    setSearchQuery('');
+  };
+
+  const handleUpload = async (files: File[], metadata: { tipo: TipoDocumento; descripcion?: string }) => {
+    for (const file of files) {
+      await createDocumento(file, {
+        tipo: metadata.tipo,
+        descripcion: metadata.descripcion,
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleteDocId) {
+      await deleteDocumento(deleteDocId);
+      setDeleteDocId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -62,104 +123,137 @@ export default function DocumentosPage() {
             Gestiona todos los documentos de clientes y trabajos
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setUploadOpen(true)}>
           <Upload className="h-4 w-4 mr-2" />
           Subir Documento
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar documentos..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar documentos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={tipoFilter} onValueChange={setTipoFilter}>
+            <SelectTrigger className="w-[180px]">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los tipos</SelectItem>
+              {tiposDocumento.map((tipo) => (
+                <SelectItem key={tipo} value={tipo}>
+                  {tipo}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={clienteFilter} onValueChange={setClienteFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Cliente" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los clientes</SelectItem>
+              {clientes.map((cliente) => (
+                <SelectItem key={cliente.id} value={cliente.id}>
+                  {cliente.nombreCompleto}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={tipoFilter} onValueChange={setTipoFilter}>
-          <SelectTrigger className="w-[180px]">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los tipos</SelectItem>
-            {tiposDocumento.map((tipo) => (
-              <SelectItem key={tipo} value={tipo}>
-                {tipo}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={trabajoFilter} onValueChange={setTrabajoFilter}>
+            <SelectTrigger className="w-[250px]">
+              <SelectValue placeholder="Trabajo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los trabajos</SelectItem>
+              {trabajos.map((trabajo) => (
+                <SelectItem key={trabajo.id} value={trabajo.id}>
+                  {trabajo.nombreTrabajo}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <DatePickerWithRange value={dateRange} onChange={setDateRange} />
+          
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="h-4 w-4 mr-1" />
+              Limpiar filtros
+            </Button>
+          )}
+        </div>
       </div>
-
-      {/* Upload area */}
-      <Card className="border-2 border-dashed border-border p-8">
-        <div className="text-center">
-          <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-2">Arrastra archivos aquí</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            o haz clic para seleccionar archivos desde tu computadora
-          </p>
-          <Button variant="outline">
-            Seleccionar archivos
-          </Button>
-        </div>
-      </Card>
 
       {/* Documents grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredDocs.map((doc) => {
-          const IconComponent = getFileIcon(doc.nombre);
-          
-          return (
-            <Card key={doc.id} className="p-4 hover:shadow-md transition-shadow group">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <IconComponent className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-sm truncate" title={doc.nombre}>
-                    {doc.nombre}
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {doc.tipo} • {doc.size} KB
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate mt-1">
-                    {doc.cliente || doc.trabajo}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-                <span className="text-xs text-muted-foreground">
-                  {doc.fecha.toLocaleDateString('es-PY')}
-                </span>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <Eye className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <Download className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      {filteredDocs.length === 0 && (
+      {filteredDocs.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredDocs.map((doc) => (
+            <DocumentoCard
+              key={doc.id}
+              documento={doc}
+              clienteNombre={getClienteNombre(doc.clienteId)}
+              trabajoNombre={getTrabajoNombre(doc.trabajoId)}
+              onView={setViewingDoc}
+              onDelete={(d) => setDeleteDocId(d.id)}
+            />
+          ))}
+        </div>
+      ) : (
         <div className="text-center py-12">
           <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">No se encontraron documentos</p>
+          <h3 className="font-semibold mb-2">
+            {documentos.length === 0 ? 'No hay documentos' : 'No se encontraron documentos'}
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            {documentos.length === 0 
+              ? 'Sube tu primer documento para comenzar'
+              : 'Intenta ajustar los filtros de búsqueda'
+            }
+          </p>
+          {documentos.length === 0 && (
+            <Button onClick={() => setUploadOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Subir Documento
+            </Button>
+          )}
         </div>
       )}
+
+      {/* Upload dialog */}
+      <DocumentoUpload
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        onUpload={handleUpload}
+        isLoading={isLoading}
+      />
+
+      {/* Viewer */}
+      <DocumentoViewer
+        documento={viewingDoc}
+        onClose={() => setViewingDoc(null)}
+      />
+
+      {/* Delete confirm */}
+      <DeleteConfirmDialog
+        open={!!deleteDocId}
+        onOpenChange={(open) => !open && setDeleteDocId(null)}
+        onConfirm={handleDelete}
+        title="Eliminar documento"
+        description="¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer."
+        isLoading={isLoading}
+      />
     </div>
   );
 }
