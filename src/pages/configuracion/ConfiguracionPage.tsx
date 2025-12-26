@@ -36,6 +36,7 @@ import { TiposTrabajoTab } from '@/components/configuracion/TiposTrabajoTab';
 import { EstadosKanbanTab } from '@/components/configuracion/EstadosKanbanTab';
 import { CategoriasTrabajoTab } from '@/components/configuracion/CategoriasTrabajoTab';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
+import { ThemeSelector } from '@/components/theme/ThemeSelector';
 
 export default function ConfiguracionPage() {
   const [profesional, setProfesional] = useState(profesionalMock);
@@ -274,7 +275,9 @@ export default function ConfiguracionPage() {
         </TabsContent>
 
         {/* Negocio */}
-        <TabsContent value="negocio" className="mt-6">
+        <TabsContent value="negocio" className="mt-6 space-y-6">
+          <ThemeSelector />
+          
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Configuración de Negocio</h3>
             

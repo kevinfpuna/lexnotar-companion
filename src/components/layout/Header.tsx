@@ -15,6 +15,7 @@ import { profesionalMock, formatDate } from '@/lib/mockData';
 import { Badge } from '@/components/ui/badge';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { useApp } from '@/contexts/AppContext';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -120,7 +121,9 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
 
       {/* Right section */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
+        {/* Theme Toggle */}
+        <ThemeToggle />
         {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
