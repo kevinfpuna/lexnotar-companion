@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { useApp } from '@/contexts/AppContext';
 import { formatCurrency, formatCurrencyCompact, formatDate } from '@/lib/mockData';
 import { TrabajoForm } from '@/components/forms/TrabajoForm';
+import { NotificationPermissionBanner } from '@/components/notifications/NotificationPermissionBanner';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -64,6 +65,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Notification Permission Banner */}
+      <NotificationPermissionBanner />
+
       {/* Page header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>

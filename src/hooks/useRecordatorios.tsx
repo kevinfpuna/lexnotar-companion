@@ -4,12 +4,14 @@ import { EventoCalendario } from '@/types';
 import { differenceInMinutes, format, isToday, isTomorrow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bell, Calendar, Clock } from 'lucide-react';
+import { usePushNotifications } from './usePushNotifications';
 
 interface UseRecordatoriosOptions {
   eventos: EventoCalendario[];
   onEventoRecordado?: (eventoId: string) => void;
   checkIntervalMs?: number;
   enabled?: boolean;
+  pushNotificationsEnabled?: boolean;
 }
 
 export function useRecordatorios({
@@ -17,9 +19,44 @@ export function useRecordatorios({
   onEventoRecordado,
   checkIntervalMs = 60000, // Check every minute
   enabled = true,
+  pushNotificationsEnabled = true,
 }: UseRecordatoriosOptions) {
   const shownRecordatorios = useRef<Set<string>>(new Set());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { permission, showNotification } = usePushNotifications();
+
+  const formatTimeDisplay = useCallback((eventoDate: Date, minutesUntilEvent: number, hoursUntilEvent: number) => {
+    if (minutesUntilEvent < 60) {
+      return `en ${minutesUntilEvent} minutos`;
+    } else if (hoursUntilEvent < 24) {
+      return `en ${Math.round(hoursUntilEvent)} horas`;
+    } else if (isToday(eventoDate)) {
+      return 'hoy';
+    } else if (isTomorrow(eventoDate)) {
+      return 'mañana';
+    } else {
+      return format(eventoDate, "EEEE d 'de' MMMM", { locale: es });
+    }
+  }, []);
+
+  const showPushNotification = useCallback((evento: EventoCalendario, timeDisplay: string, isUrgent: boolean = false) => {
+    if (!pushNotificationsEnabled || permission !== 'granted') return;
+
+    const title = isUrgent 
+      ? `¡${evento.tituloEvento} es ahora!`
+      : `Recordatorio: ${evento.tituloEvento}`;
+    
+    const body = isUrgent
+      ? evento.descripcion || 'El evento está ocurriendo ahora'
+      : `${timeDisplay}${evento.horaEvento ? ` • ${evento.horaEvento}` : ''}${evento.descripcion ? `\n${evento.descripcion}` : ''}`;
+
+    showNotification(title, {
+      body,
+      tag: `evento-${evento.id}`,
+      requireInteraction: isUrgent,
+      silent: false,
+    });
+  }, [pushNotificationsEnabled, permission, showNotification]);
 
   const checkRecordatorios = useCallback(() => {
     if (!enabled || eventos.length === 0) return;
@@ -52,19 +89,10 @@ export function useRecordatorios({
       if (minutesUntilEvent > 0 && hoursUntilEvent <= reminderHours) {
         shownRecordatorios.current.add(evento.id);
         
-        // Format the time display
-        let timeDisplay = '';
-        if (minutesUntilEvent < 60) {
-          timeDisplay = `en ${minutesUntilEvent} minutos`;
-        } else if (hoursUntilEvent < 24) {
-          timeDisplay = `en ${Math.round(hoursUntilEvent)} horas`;
-        } else if (isToday(eventoDate)) {
-          timeDisplay = 'hoy';
-        } else if (isTomorrow(eventoDate)) {
-          timeDisplay = 'mañana';
-        } else {
-          timeDisplay = format(eventoDate, "EEEE d 'de' MMMM", { locale: es });
-        }
+        const timeDisplay = formatTimeDisplay(eventoDate, minutesUntilEvent, hoursUntilEvent);
+
+        // Show push notification
+        showPushNotification(evento, timeDisplay, false);
 
         // Show toast notification
         toast(evento.tituloEvento, {
@@ -95,6 +123,9 @@ export function useRecordatorios({
       if (minutesUntilEvent >= -5 && minutesUntilEvent <= 5 && !shownRecordatorios.current.has(`now-${evento.id}`)) {
         shownRecordatorios.current.add(`now-${evento.id}`);
         
+        // Show urgent push notification
+        showPushNotification(evento, '', true);
+        
         toast.warning(`¡${evento.tituloEvento} es ahora!`, {
           description: evento.descripcion,
           icon: <Calendar className="h-4 w-4" />,
@@ -102,7 +133,7 @@ export function useRecordatorios({
         });
       }
     });
-  }, [eventos, enabled, onEventoRecordado]);
+  }, [eventos, enabled, onEventoRecordado, formatTimeDisplay, showPushNotification]);
 
   // Initial check and interval setup
   useEffect(() => {
