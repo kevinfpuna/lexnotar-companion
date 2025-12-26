@@ -204,14 +204,17 @@ export function EventoForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Trabajo (opcional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === 'none' ? '' : value)} 
+                    value={field.value || 'none'}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Sin trabajo asociado" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Sin trabajo</SelectItem>
+                      <SelectItem value="none">Sin trabajo</SelectItem>
                       {trabajos.map((trabajo) => (
                         <SelectItem key={trabajo.id} value={trabajo.id}>
                           {trabajo.nombreTrabajo}
