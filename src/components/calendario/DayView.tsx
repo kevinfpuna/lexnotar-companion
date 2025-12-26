@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { format, setHours, isToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { EventoCalendario, TipoEvento } from '@/types';
+import { EventoCalendario, TipoEvento, Trabajo } from '@/types';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -11,16 +11,16 @@ interface DayViewProps {
   date: Date;
   eventos: EventoCalendario[];
   onEventClick: (evento: EventoCalendario) => void;
-  trabajos?: { id: string; nombreTrabajo: string }[];
+  trabajos?: Trabajo[];
 }
 
 const tipoEventoStyles: Record<TipoEvento, { bg: string; text: string; icon: typeof Clock }> = {
-  'Inicio': { bg: 'bg-info/10', text: 'text-info', icon: Clock },
-  'Fin estimada': { bg: 'bg-warning/10', text: 'text-warning', icon: Clock },
-  'Fin real': { bg: 'bg-success/10', text: 'text-success', icon: Clock },
-  'Recordatorio': { bg: 'bg-primary/10', text: 'text-primary', icon: AlertCircle },
-  'Cita personal': { bg: 'bg-muted', text: 'text-muted-foreground', icon: Clock },
-  'Vencimiento': { bg: 'bg-destructive/10', text: 'text-destructive', icon: AlertCircle },
+  'Inicio': { bg: 'bg-info/10 hover:bg-info/20', text: 'text-info', icon: Clock },
+  'Fin estimada': { bg: 'bg-warning/10 hover:bg-warning/20', text: 'text-warning', icon: Clock },
+  'Fin real': { bg: 'bg-success/10 hover:bg-success/20', text: 'text-success', icon: Clock },
+  'Recordatorio': { bg: 'bg-primary/10 hover:bg-primary/20', text: 'text-primary', icon: AlertCircle },
+  'Cita personal': { bg: 'bg-muted hover:bg-muted/80', text: 'text-muted-foreground', icon: Clock },
+  'Vencimiento': { bg: 'bg-destructive/10 hover:bg-destructive/20', text: 'text-destructive', icon: AlertCircle },
 };
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -48,6 +48,17 @@ export function DayView({ date, eventos, onEventClick, trabajos = [] }: DayViewP
     return trabajo?.nombreTrabajo;
   };
 
+  // Group events by hour for timeline display
+  const eventosByHour = useMemo(() => {
+    const grouped: Record<number, EventoCalendario[]> = {};
+    sortedEventos.forEach(evento => {
+      const hour = evento.horaEvento ? parseInt(evento.horaEvento.split(':')[0]) : 9;
+      if (!grouped[hour]) grouped[hour] = [];
+      grouped[hour].push(evento);
+    });
+    return grouped;
+  }, [sortedEventos]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Timeline */}
@@ -55,7 +66,7 @@ export function DayView({ date, eventos, onEventClick, trabajos = [] }: DayViewP
         <div className="p-4 bg-muted/50 border-b border-border">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-lg">
+              <h3 className="font-semibold text-lg capitalize">
                 {format(date, 'EEEE', { locale: es })}
               </h3>
               <p className="text-muted-foreground">
@@ -70,26 +81,24 @@ export function DayView({ date, eventos, onEventClick, trabajos = [] }: DayViewP
 
         <div className="max-h-[600px] overflow-y-auto">
           <div className="relative">
-            {HOURS.map((hour) => (
-              <div 
-                key={hour}
-                className={cn(
-                  "flex border-b border-border",
-                  hour >= BUSINESS_HOURS_START && hour <= BUSINESS_HOURS_END 
-                    ? "bg-background" 
-                    : "bg-muted/30"
-                )}
-              >
-                <div className="w-16 py-3 px-2 text-xs text-muted-foreground text-right border-r border-border">
-                  {format(setHours(new Date(), hour), 'HH:00')}
-                </div>
-                <div className="flex-1 min-h-[48px] p-1">
-                  {sortedEventos
-                    .filter(e => {
-                      const eventHour = e.horaEvento ? parseInt(e.horaEvento.split(':')[0]) : 9;
-                      return eventHour === hour;
-                    })
-                    .map((evento) => {
+            {HOURS.map((hour) => {
+              const hourEvents = eventosByHour[hour] || [];
+              
+              return (
+                <div 
+                  key={hour}
+                  className={cn(
+                    "flex border-b border-border min-h-[60px]",
+                    hour >= BUSINESS_HOURS_START && hour <= BUSINESS_HOURS_END 
+                      ? "bg-background" 
+                      : "bg-muted/30"
+                  )}
+                >
+                  <div className="w-16 py-3 px-2 text-xs text-muted-foreground text-right border-r border-border flex-shrink-0">
+                    {format(setHours(new Date(), hour), 'HH:00')}
+                  </div>
+                  <div className="flex-1 p-1 space-y-1">
+                    {hourEvents.map((evento) => {
                       const style = tipoEventoStyles[evento.tipoEvento];
                       const trabajoNombre = getTrabajoNombre(evento.trabajoId);
                       
@@ -97,8 +106,9 @@ export function DayView({ date, eventos, onEventClick, trabajos = [] }: DayViewP
                         <div
                           key={evento.id}
                           className={cn(
-                            "rounded-lg p-2 mb-1 cursor-pointer hover:ring-2 ring-primary/50 transition-all",
-                            style.bg
+                            "rounded-lg p-3 cursor-pointer transition-all ring-primary/50",
+                            style.bg,
+                            "hover:ring-2"
                           )}
                           onClick={() => onEventClick(evento)}
                         >
@@ -124,11 +134,11 @@ export function DayView({ date, eventos, onEventClick, trabajos = [] }: DayViewP
                           )}
                         </div>
                       );
-                    })
-                  }
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* Current time indicator */}
             {today && (
@@ -166,15 +176,16 @@ export function DayView({ date, eventos, onEventClick, trabajos = [] }: DayViewP
                   <div
                     key={evento.id}
                     className={cn(
-                      "p-3 rounded-lg border cursor-pointer hover:ring-2 ring-primary/50 transition-all",
-                      style.bg
+                      "p-3 rounded-lg border cursor-pointer transition-all ring-primary/50",
+                      style.bg,
+                      "hover:ring-2"
                     )}
                     onClick={() => onEventClick(evento)}
                   >
                     <div className="flex items-start gap-2">
-                      <IconComponent className={cn("h-4 w-4 mt-0.5", style.text)} />
+                      <IconComponent className={cn("h-4 w-4 mt-0.5 flex-shrink-0", style.text)} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-medium">
                             {evento.horaEvento || '09:00'}
                           </span>
@@ -215,6 +226,12 @@ export function DayView({ date, eventos, onEventClick, trabajos = [] }: DayViewP
               <span className="text-muted-foreground">Vencimientos</span>
               <span className="font-medium text-destructive">
                 {sortedEventos.filter(e => e.tipoEvento === 'Vencimiento').length}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Citas personales</span>
+              <span className="font-medium">
+                {sortedEventos.filter(e => e.tipoEvento === 'Cita personal').length}
               </span>
             </div>
           </div>

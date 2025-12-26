@@ -249,6 +249,7 @@ export default function CalendarioPage() {
           selectedDate={selectedDate}
           onDateClick={handleDateClick}
           onEventClick={handleEventClick}
+          onEventDrop={handleEventDrop}
         />
       )}
 
