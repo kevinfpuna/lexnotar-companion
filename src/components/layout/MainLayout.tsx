@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileSidebar } from './MobileSidebar';
+import { NotificationPermissionBanner } from '@/components/notifications/NotificationPermissionBanner';
 import { cn } from '@/lib/utils';
 
 export function MainLayout() {
@@ -29,6 +30,7 @@ export function MainLayout() {
         <Header onMenuClick={() => setMobileMenuOpen(true)} />
         
         <main className="p-4 md:p-6 lg:p-8">
+          <NotificationPermissionBanner />
           <Outlet />
         </main>
       </div>
