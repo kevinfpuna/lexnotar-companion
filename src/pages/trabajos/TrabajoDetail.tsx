@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft,
@@ -29,27 +30,54 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  getTrabajoById,
-  getClienteById,
-  getTipoTrabajoById,
-  getItemsByTrabajoId,
-  getPagosByTrabajoId,
-  formatCurrency,
-  formatDate 
-} from '@/lib/mockData';
-import { EstadoItem } from '@/types';
+import { Textarea } from '@/components/ui/textarea';
+import { useApp } from '@/contexts/AppContext';
+import { formatCurrency, formatDate } from '@/lib/mockData';
+import { EstadoItem, EstadoTrabajo } from '@/types';
+import { ItemForm } from '@/components/forms/ItemForm';
+import { PagoForm } from '@/components/forms/PagoForm';
+import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
+import { applyPagoToItem, distributeGeneralPago, calculateClienteDeuda } from '@/lib/calculations';
+import { toast } from 'sonner';
 
 const estadoItemOptions: EstadoItem[] = ['Pendiente', 'En proceso', 'Mesa entrada', 'Mesa salida', 'Listo retirar', 'Completado'];
+const estadoTrabajoOptions: EstadoTrabajo[] = ['Borrador', 'Pendiente', 'En proceso', 'Completado', 'Cancelado'];
 
 export default function TrabajoDetail() {
   const { id } = useParams<{ id: string }>();
+  const { 
+    getTrabajoById, 
+    getItemsByTrabajoId,
+    getTrabajosByClienteId,
+    clientes,
+    tiposTrabajo,
+    pagos,
+    items,
+    trabajos,
+    updateTrabajoEstado,
+    updateItemEstado,
+    addItem,
+    updateItem,
+    deleteItem,
+    createPago,
+    deletePago,
+    recalculateTrabajo,
+    updateCliente,
+    setItems,
+    isLoading
+  } = useApp();
+  
+  const [itemFormOpen, setItemFormOpen] = useState(false);
+  const [pagoFormOpen, setPagoFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+  const [deletePagoId, setDeletePagoId] = useState<string | null>(null);
   
   const trabajo = getTrabajoById(id || '');
-  const cliente = trabajo ? getClienteById(trabajo.clienteId) : undefined;
-  const tipoTrabajo = trabajo ? getTipoTrabajoById(trabajo.tipoTrabajoId) : undefined;
-  const items = trabajo ? getItemsByTrabajoId(trabajo.id) : [];
-  const pagos = trabajo ? getPagosByTrabajoId(trabajo.id) : [];
+  const cliente = trabajo ? clientes.find(c => c.id === trabajo.clienteId) : undefined;
+  const tipoTrabajo = trabajo ? tiposTrabajo.find(t => t.id === trabajo.tipoTrabajoId) : undefined;
+  const trabajoItems = trabajo ? getItemsByTrabajoId(trabajo.id) : [];
+  const trabajoPagos = trabajo ? pagos.filter(p => p.trabajoId === trabajo.id) : [];
 
   if (!trabajo) {
     return (
@@ -62,8 +90,93 @@ export default function TrabajoDetail() {
     );
   }
 
-  const completedItems = items.filter(i => i.estado === 'Completado').length;
-  const progress = items.length > 0 ? Math.round((completedItems / items.length) * 100) : 0;
+  const completedItems = trabajoItems.filter(i => i.estado === 'Completado').length;
+  const progress = trabajoItems.length > 0 ? Math.round((completedItems / trabajoItems.length) * 100) : 0;
+
+  // Handle estado change for trabajo
+  const handleEstadoTrabajoChange = async (newEstado: EstadoTrabajo) => {
+    await updateTrabajoEstado(trabajo.id, newEstado);
+  };
+
+  // Handle estado change for item
+  const handleEstadoItemChange = async (itemId: string, newEstado: EstadoItem) => {
+    await updateItemEstado(itemId, newEstado);
+  };
+
+  // Handle add item
+  const handleAddItem = async (data: any) => {
+    await addItem(trabajo.id, data);
+    setItemFormOpen(false);
+  };
+
+  // Handle edit item
+  const handleEditItem = async (data: any) => {
+    if (editingItem) {
+      await updateItem(editingItem, data);
+      setEditingItem(null);
+    }
+  };
+
+  // Handle delete item
+  const handleDeleteItem = async () => {
+    if (deleteItemId) {
+      const success = await deleteItem(deleteItemId, pagos);
+      if (success) {
+        setDeleteItemId(null);
+      }
+    }
+  };
+
+  // Recalculate client debt - done via setClientes in hook
+
+  // Handle pago creation with balance updates
+  const handleCreatePago = async (data: any) => {
+    await createPago(data, (trabajoId, monto, itemId) => {
+      if (itemId) {
+        // Apply to specific item
+        const newItems = applyPagoToItem(items, itemId, monto);
+        setItems(newItems);
+      } else {
+        // Distribute among items with balance
+        const trabajoItemsWithBalance = items.filter(i => i.trabajoId === trabajoId && i.saldo > 0);
+        if (trabajoItemsWithBalance.length > 0) {
+          const updatedItems = distributeGeneralPago(trabajoItemsWithBalance, monto);
+          setItems(prev => prev.map(i => {
+            const updated = updatedItems.find(ui => ui.id === i.id);
+            return updated || i;
+          }));
+        }
+      }
+      
+      // Recalculate trabajo totals
+      setTimeout(() => {
+        recalculateTrabajo(trabajoId);
+      }, 100);
+    });
+    setPagoFormOpen(false);
+  };
+
+  // Handle pago deletion
+  const handleDeletePago = async () => {
+    if (deletePagoId) {
+      await deletePago(deletePagoId, (trabajoId, monto, itemId) => {
+        if (itemId) {
+          // Reverse from specific item (monto is negative)
+          const newItems = applyPagoToItem(items, itemId, monto);
+          setItems(newItems);
+        } else {
+          // Can't easily reverse distributed, just recalc
+        }
+        
+        setTimeout(() => {
+          recalculateTrabajo(trabajoId);
+        }, 100);
+      });
+      setDeletePagoId(null);
+    }
+  };
+
+  const editingItemData = editingItem ? trabajoItems.find(i => i.id === editingItem) : null;
 
   return (
     <div className="space-y-6">
@@ -77,18 +190,25 @@ export default function TrabajoDetail() {
         </Button>
 
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl md:text-3xl font-bold">{trabajo.nombreTrabajo}</h1>
-              <StatusBadge status={trabajo.estado} />
+              <Select value={trabajo.estado} onValueChange={handleEstadoTrabajoChange}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {estadoTrabajoOptions.map((estado) => (
+                    <SelectItem key={estado} value={estado}>
+                      {estado}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <p className="text-muted-foreground mt-1">{trabajo.descripcionTrabajo}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
-            </Button>
             <Button variant="outline">
               <FileText className="h-4 w-4 mr-2" />
               Presupuesto PDF
@@ -144,7 +264,7 @@ export default function TrabajoDetail() {
             <span className="font-semibold">{progress}%</span>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            {completedItems} de {items.length} pasos completados
+            {completedItems} de {trabajoItems.length} pasos completados
           </p>
         </div>
 
@@ -176,8 +296,8 @@ export default function TrabajoDetail() {
       {/* Tabs */}
       <Tabs defaultValue="items" className="w-full">
         <TabsList>
-          <TabsTrigger value="items">Pasos ({items.length})</TabsTrigger>
-          <TabsTrigger value="pagos">Pagos ({pagos.length})</TabsTrigger>
+          <TabsTrigger value="items">Pasos ({trabajoItems.length})</TabsTrigger>
+          <TabsTrigger value="pagos">Pagos ({trabajoPagos.length})</TabsTrigger>
           <TabsTrigger value="documentos">Documentos</TabsTrigger>
           <TabsTrigger value="notas">Notas</TabsTrigger>
         </TabsList>
@@ -187,7 +307,7 @@ export default function TrabajoDetail() {
           <div className="card-elevated overflow-hidden">
             <div className="p-4 border-b border-border flex items-center justify-between">
               <h3 className="font-semibold">Pasos del Trabajo</h3>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setItemFormOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Agregar paso
               </Button>
@@ -202,11 +322,11 @@ export default function TrabajoDetail() {
                   <TableHead className="text-right">Pagado</TableHead>
                   <TableHead className="text-right">Saldo</TableHead>
                   <TableHead className="w-24">Días</TableHead>
-                  <TableHead className="w-12"></TableHead>
+                  <TableHead className="w-24"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => (
+                {trabajoItems.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.numeroPaso}</TableCell>
                     <TableCell>
@@ -216,7 +336,10 @@ export default function TrabajoDetail() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Select defaultValue={item.estado}>
+                      <Select 
+                        value={item.estado} 
+                        onValueChange={(value) => handleEstadoItemChange(item.id, value as EstadoItem)}
+                      >
                         <SelectTrigger className="h-8">
                           <SelectValue />
                         </SelectTrigger>
@@ -236,12 +359,34 @@ export default function TrabajoDetail() {
                     </TableCell>
                     <TableCell>{item.diasEstimados}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => setEditingItem(item.id)}
+                        >
+                          <Edit className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => setDeleteItemId(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
+                {trabajoItems.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      No hay pasos. Agrega el primer paso del trabajo.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
@@ -252,7 +397,7 @@ export default function TrabajoDetail() {
           <div className="card-elevated overflow-hidden">
             <div className="p-4 border-b border-border flex items-center justify-between">
               <h3 className="font-semibold">Historial de Pagos</h3>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setPagoFormOpen(true)} disabled={trabajo.saldoPendiente <= 0}>
                 <Plus className="h-4 w-4 mr-2" />
                 Registrar pago
               </Button>
@@ -263,29 +408,47 @@ export default function TrabajoDetail() {
                   <TableHead>Fecha</TableHead>
                   <TableHead>Monto</TableHead>
                   <TableHead>Método</TableHead>
+                  <TableHead>Aplicado a</TableHead>
                   <TableHead>Referencia</TableHead>
                   <TableHead>Notas</TableHead>
+                  <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pagos.length === 0 ? (
+                {trabajoPagos.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No hay pagos registrados
                     </TableCell>
                   </TableRow>
                 ) : (
-                  pagos.map((pago) => (
-                    <TableRow key={pago.id}>
-                      <TableCell>{formatDate(pago.fechaPago)}</TableCell>
-                      <TableCell className="font-medium text-success">
-                        {formatCurrency(pago.monto)}
-                      </TableCell>
-                      <TableCell>{pago.metodoPago}</TableCell>
-                      <TableCell>{pago.referenciaPago || '-'}</TableCell>
-                      <TableCell className="text-muted-foreground">{pago.notasPago || '-'}</TableCell>
-                    </TableRow>
-                  ))
+                  trabajoPagos.map((pago) => {
+                    const itemPago = pago.itemId ? trabajoItems.find(i => i.id === pago.itemId) : null;
+                    return (
+                      <TableRow key={pago.id}>
+                        <TableCell>{formatDate(pago.fechaPago)}</TableCell>
+                        <TableCell className="font-medium text-success">
+                          {formatCurrency(pago.monto)}
+                        </TableCell>
+                        <TableCell>{pago.metodoPago}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {itemPago ? itemPago.nombreItem : 'General'}
+                        </TableCell>
+                        <TableCell>{pago.referenciaPago || '-'}</TableCell>
+                        <TableCell className="text-muted-foreground">{pago.notasPago || '-'}</TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => setDeletePagoId(pago.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -311,14 +474,68 @@ export default function TrabajoDetail() {
         <TabsContent value="notas" className="mt-4">
           <div className="card-elevated p-6">
             <h3 className="font-semibold mb-4">Notas internas</h3>
-            <div className="p-4 bg-muted rounded-lg">
-              <p className="text-muted-foreground">
-                {trabajo.notasInternas || 'Sin notas'}
-              </p>
-            </div>
+            <Textarea 
+              value={trabajo.notasInternas || ''} 
+              placeholder="Sin notas"
+              className="min-h-[150px]"
+              readOnly
+            />
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Item Form - Create */}
+      <ItemForm
+        open={itemFormOpen}
+        onOpenChange={setItemFormOpen}
+        onSubmit={handleAddItem}
+        isLoading={isLoading}
+        mode="create"
+      />
+
+      {/* Item Form - Edit */}
+      <ItemForm
+        open={!!editingItem}
+        onOpenChange={(open) => !open && setEditingItem(null)}
+        onSubmit={handleEditItem}
+        isLoading={isLoading}
+        mode="edit"
+        defaultValues={editingItemData ? {
+          nombreItem: editingItemData.nombreItem,
+          descripcionItem: editingItemData.descripcionItem,
+          costoTotal: editingItemData.costoTotal,
+          diasEstimados: editingItemData.diasEstimados,
+        } : undefined}
+      />
+
+      {/* Pago Form */}
+      <PagoForm
+        open={pagoFormOpen}
+        onOpenChange={setPagoFormOpen}
+        trabajos={[trabajo]}
+        onSubmit={handleCreatePago}
+        isLoading={isLoading}
+      />
+
+      {/* Delete Item Confirm */}
+      <DeleteConfirmDialog
+        open={!!deleteItemId}
+        onOpenChange={(open) => !open && setDeleteItemId(null)}
+        onConfirm={handleDeleteItem}
+        title="Eliminar paso"
+        description="¿Estás seguro de que deseas eliminar este paso? Esta acción no se puede deshacer."
+        isLoading={isLoading}
+      />
+
+      {/* Delete Pago Confirm */}
+      <DeleteConfirmDialog
+        open={!!deletePagoId}
+        onOpenChange={(open) => !open && setDeletePagoId(null)}
+        onConfirm={handleDeletePago}
+        title="Eliminar pago"
+        description="¿Estás seguro de que deseas eliminar este pago? Se recalcularán los saldos."
+        isLoading={isLoading}
+      />
     </div>
   );
 }
