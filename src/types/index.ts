@@ -148,10 +148,12 @@ export interface EventoCalendario {
   id: string;
   trabajoId?: string;
   fechaEvento: Date;
+  horaEvento?: string; // "HH:mm" format
   tipoEvento: TipoEvento;
   tituloEvento: string;
   descripcion: string;
   recordatorioHorasAntes?: number;
+  recordatorioMostrado?: boolean;
   fechaCreacion: Date;
 }
 
@@ -159,16 +161,21 @@ export type TipoDocumento = 'CI' | 'Poder' | 'Título' | 'Contrato' | 'Presupues
 
 export interface Documento {
   id: string;
+  nombre: string;
+  tipo: TipoDocumento;
+  archivoBase64: string;
+  mimeType: string;
+  size: number; // KB
+  fechaSubida: Date;
+  fechaActualizacion: Date;
   clienteId?: string;
   trabajoId?: string;
   itemId?: string;
-  nombreArchivo: string;
-  tipoDocumento: TipoDocumento;
-  rutaArchivo: string;
-  pesoKb: number;
-  fechaSubida: Date;
-  fechaCreacion: Date;
+  descripcion?: string;
+  tags?: string[];
+  vigenciaHasta?: Date;
 }
+
 
 export interface Configuracion {
   id: string;
