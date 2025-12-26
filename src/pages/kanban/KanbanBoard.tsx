@@ -43,14 +43,27 @@ export default function KanbanBoard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [clienteFilter, setClienteFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Optimistic updates state
+  const [optimisticItems, setOptimisticItems] = useState<typeof items>([]);
 
   // Get trabajo by id helper
   const getTrabajoById = (id: string) => trabajos.find(t => t.id === id);
   const getClienteById = (id: string) => clientes.find(c => c.id === id);
 
-  // Filter items
+  // Merge optimistic items with real items
+  const displayItems = useMemo(() => {
+    if (optimisticItems.length === 0) return items;
+    
+    return items.map(item => {
+      const optimisticItem = optimisticItems.find(oi => oi.id === item.id);
+      return optimisticItem || item;
+    });
+  }, [items, optimisticItems]);
+
+  // Filter items using displayItems (with optimistic updates)
   const filteredItems = useMemo(() => {
-    return items.filter(item => {
+    return displayItems.filter(item => {
       // Date range filter
       if (dateRange?.from && dateRange?.to) {
         const itemDate = item.fechaInicio || item.fechaCreacion;
@@ -82,7 +95,7 @@ export default function KanbanBoard() {
 
       return true;
     });
-  }, [items, dateRange, clienteFilter, searchQuery, trabajos, clientes]);
+  }, [displayItems, dateRange, clienteFilter, searchQuery, trabajos, clientes]);
 
   const getItemsByStatus = (status: EstadoItem) => {
     return filteredItems.filter(item => item.estado === status);
@@ -118,15 +131,48 @@ export default function KanbanBoard() {
     if (!draggedItemId) return;
 
     const item = items.find(i => i.id === draggedItemId);
-    if (item && item.estado !== newStatus) {
-      await updateItemEstado(draggedItemId, newStatus);
+    if (!item || item.estado === newStatus) {
+      setDraggedItemId(null);
+      setDragOverColumn(null);
+      return;
     }
-    setDraggedItemId(null);
-    setDragOverColumn(null);
+
+    // Optimistic update: immediately update UI
+    setOptimisticItems(items.map(i => 
+      i.id === draggedItemId ? { ...i, estado: newStatus } : i
+    ));
+
+    try {
+      await updateItemEstado(draggedItemId, newStatus);
+      // Success: clear optimistic state (real state is now updated)
+      setOptimisticItems([]);
+    } catch (error) {
+      // Rollback on error
+      setOptimisticItems([]);
+      toast.error('Error al actualizar estado del ítem');
+      console.error(error);
+    } finally {
+      setDraggedItemId(null);
+      setDragOverColumn(null);
+    }
   };
 
   const handleQuickStatusChange = async (itemId: string, newStatus: EstadoItem) => {
-    await updateItemEstado(itemId, newStatus);
+    const item = items.find(i => i.id === itemId);
+    if (!item || item.estado === newStatus) return;
+
+    // Optimistic update
+    setOptimisticItems(items.map(i => 
+      i.id === itemId ? { ...i, estado: newStatus } : i
+    ));
+
+    try {
+      await updateItemEstado(itemId, newStatus);
+      setOptimisticItems([]);
+    } catch (error) {
+      setOptimisticItems([]);
+      toast.error('Error al actualizar estado');
+    }
   };
 
   const clearFilters = () => {
