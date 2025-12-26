@@ -2,19 +2,20 @@ import { useState } from 'react';
 import { 
   User, 
   Building2, 
-  Palette, 
   Bell, 
   Database,
   Shield,
   Download,
   Upload,
-  Save
+  Save,
+  Users,
+  Briefcase,
+  Columns
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -27,12 +28,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { profesionalMock } from '@/lib/mockData';
 import { toast } from 'sonner';
+import { useTipos } from '@/hooks/useTipos';
+import { TiposClienteTab } from '@/components/configuracion/TiposClienteTab';
+import { TiposTrabajoTab } from '@/components/configuracion/TiposTrabajoTab';
+import { EstadosKanbanTab } from '@/components/configuracion/EstadosKanbanTab';
 
 export default function ConfiguracionPage() {
   const [profesional, setProfesional] = useState(profesionalMock);
   const [usarIva, setUsarIva] = useState(true);
   const [tasaIva, setTasaIva] = useState('10');
   const [diasAlerta, setDiasAlerta] = useState('7');
+
+  const {
+    tiposCliente,
+    addTipoCliente,
+    updateTipoCliente,
+    toggleTipoClienteActivo,
+    deleteTipoCliente,
+    tiposTrabajo,
+    addTipoTrabajo,
+    updateTipoTrabajo,
+    toggleTipoTrabajoActivo,
+    deleteTipoTrabajo,
+    cloneTipoTrabajo,
+    estadosKanban,
+    addEstadoKanban,
+    updateEstadoKanban,
+    deleteEstadoKanban,
+  } = useTipos();
 
   const handleSave = () => {
     toast.success('Configuración guardada correctamente');
@@ -54,29 +77,74 @@ export default function ConfiguracionPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="perfil" className="w-full">
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="perfil">
-            <User className="h-4 w-4 mr-2" />
-            Perfil
+      <Tabs defaultValue="tipos-cliente" className="w-full">
+        <TabsList className="flex-wrap h-auto gap-1 w-full justify-start">
+          <TabsTrigger value="tipos-cliente" className="gap-1.5">
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Tipos Cliente</span>
           </TabsTrigger>
-          <TabsTrigger value="negocio">
-            <Building2 className="h-4 w-4 mr-2" />
-            Negocio
+          <TabsTrigger value="tipos-trabajo" className="gap-1.5">
+            <Briefcase className="h-4 w-4" />
+            <span className="hidden sm:inline">Tipos Trabajo</span>
           </TabsTrigger>
-          <TabsTrigger value="notificaciones">
-            <Bell className="h-4 w-4 mr-2" />
-            Notificaciones
+          <TabsTrigger value="kanban" className="gap-1.5">
+            <Columns className="h-4 w-4" />
+            <span className="hidden sm:inline">Estados Kanban</span>
           </TabsTrigger>
-          <TabsTrigger value="respaldo">
-            <Database className="h-4 w-4 mr-2" />
-            Respaldo
+          <TabsTrigger value="perfil" className="gap-1.5">
+            <User className="h-4 w-4" />
+            <span className="hidden sm:inline">Perfil</span>
           </TabsTrigger>
-          <TabsTrigger value="seguridad">
-            <Shield className="h-4 w-4 mr-2" />
-            Seguridad
+          <TabsTrigger value="negocio" className="gap-1.5">
+            <Building2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Negocio</span>
+          </TabsTrigger>
+          <TabsTrigger value="notificaciones" className="gap-1.5">
+            <Bell className="h-4 w-4" />
+            <span className="hidden sm:inline">Alertas</span>
+          </TabsTrigger>
+          <TabsTrigger value="respaldo" className="gap-1.5">
+            <Database className="h-4 w-4" />
+            <span className="hidden sm:inline">Respaldo</span>
+          </TabsTrigger>
+          <TabsTrigger value="seguridad" className="gap-1.5">
+            <Shield className="h-4 w-4" />
+            <span className="hidden sm:inline">Seguridad</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Tipos de Cliente */}
+        <TabsContent value="tipos-cliente" className="mt-6">
+          <TiposClienteTab
+            tiposCliente={tiposCliente}
+            onAdd={addTipoCliente}
+            onUpdate={updateTipoCliente}
+            onToggleActivo={toggleTipoClienteActivo}
+            onDelete={deleteTipoCliente}
+          />
+        </TabsContent>
+
+        {/* Tipos de Trabajo */}
+        <TabsContent value="tipos-trabajo" className="mt-6">
+          <TiposTrabajoTab
+            tiposTrabajo={tiposTrabajo}
+            onAdd={addTipoTrabajo}
+            onUpdate={updateTipoTrabajo}
+            onToggleActivo={toggleTipoTrabajoActivo}
+            onDelete={deleteTipoTrabajo}
+            onClone={cloneTipoTrabajo}
+          />
+        </TabsContent>
+
+        {/* Estados Kanban */}
+        <TabsContent value="kanban" className="mt-6">
+          <EstadosKanbanTab
+            estadosKanban={estadosKanban}
+            onAdd={addEstadoKanban}
+            onUpdate={updateEstadoKanban}
+            onDelete={deleteEstadoKanban}
+          />
+        </TabsContent>
 
         {/* Perfil */}
         <TabsContent value="perfil" className="mt-6">
