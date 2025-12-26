@@ -25,7 +25,7 @@ import { toast } from 'sonner';
 
 const tiposDocumento: TipoDocumento[] = [
   'CI', 'Poder', 'Título', 'Contrato', 'Presupuesto', 
-  'Acta', 'Sentencia', 'Comprobante pago', 'Firma digital', 'Logo', 'Otro'
+  'Acta', 'Sentencia', 'Comprobante pago', 'Otro'
 ];
 
 interface DocumentoUploadProps {
