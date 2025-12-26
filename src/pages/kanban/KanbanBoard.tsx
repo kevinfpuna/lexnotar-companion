@@ -1,14 +1,25 @@
 import { useState } from 'react';
-import { 
-  itemsMock, 
-  getTrabajoById, 
-  getClienteById, 
-  formatCurrency,
-  formatDate
-} from '@/lib/mockData';
-import { EstadoItem, Item } from '@/types';
+import { Link } from 'react-router-dom';
+import { useApp } from '@/contexts/AppContext';
+import { formatCurrency } from '@/lib/mockData';
+import { EstadoItem } from '@/types';
 import { cn } from '@/lib/utils';
-import { Clock, User, Briefcase } from 'lucide-react';
+import { Clock, User, Briefcase, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { toast } from 'sonner';
 
 const columns: { id: EstadoItem; title: string; color: string }[] = [
   { id: 'Pendiente', title: 'Pendiente', color: 'bg-warning/10 border-warning/20' },
@@ -19,16 +30,23 @@ const columns: { id: EstadoItem; title: string; color: string }[] = [
   { id: 'Completado', title: 'Completado', color: 'bg-muted border-border' },
 ];
 
+const estadoItemOptions: EstadoItem[] = ['Pendiente', 'En proceso', 'Mesa entrada', 'Mesa salida', 'Listo retirar', 'Completado'];
+
 export default function KanbanBoard() {
-  const [items, setItems] = useState<Item[]>(itemsMock);
-  const [draggedItem, setDraggedItem] = useState<Item | null>(null);
+  const { items, trabajos, clientes, updateItemEstado, isLoading } = useApp();
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+
+  // Get trabajo by id helper
+  const getTrabajoById = (id: string) => trabajos.find(t => t.id === id);
+  const getClienteById = (id: string) => clientes.find(c => c.id === id);
 
   const getItemsByStatus = (status: EstadoItem) => {
     return items.filter(item => item.estado === status);
   };
 
-  const handleDragStart = (e: React.DragEvent, item: Item) => {
-    setDraggedItem(item);
+  const handleDragStart = (e: React.DragEvent, itemId: string) => {
+    setDraggedItemId(itemId);
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -37,17 +55,24 @@ export default function KanbanBoard() {
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: EstadoItem) => {
+  const handleDrop = async (e: React.DragEvent, newStatus: EstadoItem) => {
     e.preventDefault();
-    if (!draggedItem) return;
+    if (!draggedItemId) return;
 
-    setItems(prev => prev.map(item => 
-      item.id === draggedItem.id 
-        ? { ...item, estado: newStatus, fechaActualizacion: new Date() }
-        : item
-    ));
-    setDraggedItem(null);
+    const item = items.find(i => i.id === draggedItemId);
+    if (item && item.estado !== newStatus) {
+      await updateItemEstado(draggedItemId, newStatus);
+    }
+    setDraggedItemId(null);
   };
+
+  const handleQuickStatusChange = async (itemId: string, newStatus: EstadoItem) => {
+    await updateItemEstado(itemId, newStatus);
+  };
+
+  const selectedItem = selectedItemId ? items.find(i => i.id === selectedItemId) : null;
+  const selectedTrabajo = selectedItem ? getTrabajoById(selectedItem.trabajoId) : null;
+  const selectedCliente = selectedTrabajo ? getClienteById(selectedTrabajo.clienteId) : null;
 
   return (
     <div className="space-y-6">
@@ -92,11 +117,12 @@ export default function KanbanBoard() {
                     <div
                       key={item.id}
                       draggable
-                      onDragStart={(e) => handleDragStart(e, item)}
+                      onDragStart={(e) => handleDragStart(e, item.id)}
+                      onClick={() => setSelectedItemId(item.id)}
                       className={cn(
                         "bg-card rounded-lg border border-border p-3 cursor-grab active:cursor-grabbing",
                         "hover:shadow-md transition-shadow",
-                        draggedItem?.id === item.id && "opacity-50"
+                        draggedItemId === item.id && "opacity-50"
                       )}
                     >
                       <h4 className="font-medium text-sm mb-2">{item.nombreItem}</h4>
@@ -137,6 +163,69 @@ export default function KanbanBoard() {
           );
         })}
       </div>
+
+      {/* Quick Action Dialog */}
+      <Dialog open={!!selectedItemId} onOpenChange={(open) => !open && setSelectedItemId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedItem?.nombreItem}</DialogTitle>
+          </DialogHeader>
+          
+          {selectedItem && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Cliente</p>
+                  <p className="font-medium">{selectedCliente?.nombreCompleto}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Trabajo</p>
+                  <p className="font-medium">{selectedTrabajo?.nombreTrabajo}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Costo</p>
+                  <p className="font-medium">{formatCurrency(selectedItem.costoTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Saldo</p>
+                  <p className={cn("font-medium", selectedItem.saldo > 0 ? "text-destructive" : "text-success")}>
+                    {formatCurrency(selectedItem.saldo)}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Cambiar estado</p>
+                <Select 
+                  value={selectedItem.estado} 
+                  onValueChange={(value) => handleQuickStatusChange(selectedItem.id, value as EstadoItem)}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {estadoItemOptions.map((estado) => (
+                      <SelectItem key={estado} value={estado}>
+                        {estado}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2">
+                <Button asChild className="flex-1">
+                  <Link to={`/trabajos/${selectedItem.trabajoId}`}>
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Ver trabajo completo
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

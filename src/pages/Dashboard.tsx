@@ -1,33 +1,36 @@
+import { useState } from 'react';
 import { 
   Wallet, 
   Briefcase, 
   CheckCircle2, 
   Clock, 
-  TrendingUp,
   AlertCircle,
   Calendar,
-  ArrowRight
+  ArrowRight,
+  Plus
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
-import { 
-  trabajosMock, 
-  clientesMock, 
-  eventosMock,
-  formatCurrency, 
-  formatDate,
-  getClienteById,
-  getTipoTrabajoById
-} from '@/lib/mockData';
+import { useApp } from '@/contexts/AppContext';
+import { formatCurrency, formatDate } from '@/lib/mockData';
+import { TrabajoForm } from '@/components/forms/TrabajoForm';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { clientes, trabajos, eventos, tiposTrabajo, createTrabajo, isLoading } = useApp();
+  const [trabajoFormOpen, setTrabajoFormOpen] = useState(false);
+
+  // Get tipo trabajo by id helper
+  const getTipoTrabajoById = (id: string) => tiposTrabajo.find(t => t.id === id);
+  const getClienteById = (id: string) => clientes.find(c => c.id === id);
+
   // Calculate stats
-  const deudaTotal = clientesMock.reduce((sum, c) => sum + c.deudaTotalActual, 0);
-  const trabajosActivos = trabajosMock.filter(t => t.estado === 'En proceso').length;
-  const trabajosPendientes = trabajosMock.filter(t => t.estado === 'Pendiente').length;
-  const trabajosCompletadosMes = trabajosMock.filter(t => {
+  const deudaTotal = clientes.reduce((sum, c) => sum + c.deudaTotalActual, 0);
+  const trabajosActivos = trabajos.filter(t => t.estado === 'En proceso').length;
+  const trabajosPendientes = trabajos.filter(t => t.estado === 'Pendiente').length;
+  const trabajosCompletadosMes = trabajos.filter(t => {
     if (t.estado !== 'Completado' || !t.fechaFinReal) return false;
     const now = new Date();
     return t.fechaFinReal.getMonth() === now.getMonth() && 
@@ -36,21 +39,28 @@ export default function Dashboard() {
 
   // Get upcoming events
   const today = new Date();
-  const proximosEventos = eventosMock
+  const proximosEventos = eventos
     .filter(e => e.fechaEvento >= today)
     .sort((a, b) => a.fechaEvento.getTime() - b.fechaEvento.getTime())
     .slice(0, 5);
 
   // Recent works
-  const trabajosRecientes = [...trabajosMock]
+  const trabajosRecientes = [...trabajos]
     .sort((a, b) => b.fechaUltimaActualizacion.getTime() - a.fechaUltimaActualizacion.getTime())
     .slice(0, 5);
 
   // Clients with debt
-  const clientesConDeuda = clientesMock
+  const clientesConDeuda = clientes
     .filter(c => c.deudaTotalActual > 0)
     .sort((a, b) => b.deudaTotalActual - a.deudaTotalActual)
     .slice(0, 5);
+
+  // Handle create trabajo
+  const handleCreateTrabajo = async (data: any, customItems?: any[]) => {
+    const newTrabajo = await createTrabajo(data, customItems);
+    setTrabajoFormOpen(false);
+    navigate(`/trabajos/${newTrabajo.id}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -63,45 +73,63 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button asChild>
-            <Link to="/trabajos/nuevo">
-              <Briefcase className="h-4 w-4 mr-2" />
-              Nuevo Trabajo
-            </Link>
+          <Button onClick={() => setTrabajoFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Trabajo
           </Button>
         </div>
       </div>
 
-      {/* Stats grid */}
+      {/* Stats grid - Clickable */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Deuda Total"
-          value={formatCurrency(deudaTotal)}
-          subtitle="Saldo pendiente de cobro"
-          icon={Wallet}
-          variant="destructive"
-        />
-        <StatCard
-          title="Trabajos Activos"
-          value={trabajosActivos}
-          subtitle="En proceso actualmente"
-          icon={Briefcase}
-          variant="primary"
-        />
-        <StatCard
-          title="Trabajos Pendientes"
-          value={trabajosPendientes}
-          subtitle="Por iniciar"
-          icon={Clock}
-          variant="warning"
-        />
-        <StatCard
-          title="Completados este Mes"
-          value={trabajosCompletadosMes}
-          subtitle="Trabajos finalizados"
-          icon={CheckCircle2}
-          variant="success"
-        />
+        <div 
+          onClick={() => navigate('/pagos')}
+          className="cursor-pointer hover:shadow-md transition-shadow rounded-lg"
+        >
+          <StatCard
+            title="Deuda Total"
+            value={formatCurrency(deudaTotal)}
+            subtitle="Saldo pendiente de cobro"
+            icon={Wallet}
+            variant="destructive"
+          />
+        </div>
+        <div 
+          onClick={() => navigate('/trabajos?estado=En proceso')}
+          className="cursor-pointer hover:shadow-md transition-shadow rounded-lg"
+        >
+          <StatCard
+            title="Trabajos Activos"
+            value={trabajosActivos}
+            subtitle="En proceso actualmente"
+            icon={Briefcase}
+            variant="primary"
+          />
+        </div>
+        <div 
+          onClick={() => navigate('/trabajos?estado=Pendiente')}
+          className="cursor-pointer hover:shadow-md transition-shadow rounded-lg"
+        >
+          <StatCard
+            title="Trabajos Pendientes"
+            value={trabajosPendientes}
+            subtitle="Por iniciar"
+            icon={Clock}
+            variant="warning"
+          />
+        </div>
+        <div 
+          onClick={() => navigate('/trabajos?estado=Completado')}
+          className="cursor-pointer hover:shadow-md transition-shadow rounded-lg"
+        >
+          <StatCard
+            title="Completados este Mes"
+            value={trabajosCompletadosMes}
+            subtitle="Trabajos finalizados"
+            icon={CheckCircle2}
+            variant="success"
+          />
+        </div>
       </div>
 
       {/* Main content grid */}
@@ -171,7 +199,8 @@ export default function Dashboard() {
               proximosEventos.map((evento) => (
                 <div
                   key={evento.id}
-                  className="p-3 rounded-lg bg-muted/50 border-l-2 border-primary"
+                  className="p-3 rounded-lg bg-muted/50 border-l-2 border-primary cursor-pointer hover:bg-muted transition-colors"
+                  onClick={() => navigate('/calendario')}
                 >
                   <p className="font-medium text-sm">{evento.tituloEvento}</p>
                   <div className="flex items-center gap-2 mt-1">
@@ -217,8 +246,23 @@ export default function Dashboard() {
               </p>
             </Link>
           ))}
+          {clientesConDeuda.length === 0 && (
+            <p className="text-sm text-muted-foreground col-span-full text-center py-4">
+              No hay clientes con deuda
+            </p>
+          )}
         </div>
       </div>
+
+      {/* Trabajo Form */}
+      <TrabajoForm
+        open={trabajoFormOpen}
+        onOpenChange={setTrabajoFormOpen}
+        clientes={clientes}
+        tiposTrabajo={tiposTrabajo}
+        onSubmit={handleCreateTrabajo}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

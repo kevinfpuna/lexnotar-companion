@@ -6,7 +6,9 @@ import {
   TrendingDown,
   Search,
   Filter,
-  ArrowUpRight
+  ArrowUpRight,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,37 +29,53 @@ import {
 } from '@/components/ui/table';
 import { StatCard } from '@/components/ui/stat-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  clientesMock, 
-  trabajosMock,
-  pagosMock,
-  formatCurrency,
-  formatDate,
-  getClienteById,
-  getTrabajoById
-} from '@/lib/mockData';
+import { useApp } from '@/contexts/AppContext';
+import { formatCurrency, formatDate } from '@/lib/mockData';
 import { MetodoPago } from '@/types';
+import { PagoForm } from '@/components/forms/PagoForm';
+import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
+import { applyPagoToItem, distributeGeneralPago, calculateClienteDeuda } from '@/lib/calculations';
 
 const metodosPago: MetodoPago[] = ['Efectivo', 'Transferencia', 'Tarjeta', 'Cheque'];
 
 export default function PagosPage() {
+  const { 
+    clientes, 
+    trabajos, 
+    pagos, 
+    items,
+    createPago, 
+    deletePago,
+    recalculateTrabajo,
+    updateCliente,
+    getTrabajosByClienteId,
+    setItems,
+    isLoading 
+  } = useApp();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [metodoFilter, setMetodoFilter] = useState<string>('all');
+  const [pagoFormOpen, setPagoFormOpen] = useState(false);
+  const [deletePagoId, setDeletePagoId] = useState<string | null>(null);
 
   // Calculate stats
-  const deudaTotal = clientesMock.reduce((sum, c) => sum + c.deudaTotalActual, 0);
-  const pagosMes = pagosMock.filter(p => {
+  const deudaTotal = clientes.reduce((sum, c) => sum + c.deudaTotalActual, 0);
+  const pagosMes = pagos.filter(p => {
     const now = new Date();
     return p.fechaPago.getMonth() === now.getMonth() && 
            p.fechaPago.getFullYear() === now.getFullYear();
   });
   const totalPagosMes = pagosMes.reduce((sum, p) => sum + p.monto, 0);
-  const trabajosConDeuda = trabajosMock.filter(t => t.saldoPendiente > 0);
-  const clientesConDeuda = clientesMock.filter(c => c.deudaTotalActual > 0);
+  const trabajosConDeuda = trabajos.filter(t => t.saldoPendiente > 0 && t.estado !== 'Cancelado');
+  const clientesConDeuda = clientes.filter(c => c.deudaTotalActual > 0);
+
+  // Get trabajo by id helper
+  const getTrabajoById = (id: string) => trabajos.find(t => t.id === id);
+  const getClienteById = (id: string) => clientes.find(c => c.id === id);
 
   // Filter payments
   const filteredPagos = useMemo(() => {
-    return pagosMock.filter((pago) => {
+    return pagos.filter((pago) => {
       const trabajo = getTrabajoById(pago.trabajoId);
       const cliente = trabajo ? getClienteById(trabajo.clienteId) : null;
       const searchLower = searchQuery.toLowerCase();
@@ -70,17 +88,67 @@ export default function PagosPage() {
       const matchesMetodo = metodoFilter === 'all' || pago.metodoPago === metodoFilter;
 
       return matchesSearch && matchesMetodo;
+    }).sort((a, b) => b.fechaPago.getTime() - a.fechaPago.getTime());
+  }, [pagos, searchQuery, metodoFilter, trabajos, clientes]);
+
+  // Handle pago creation
+  const handleCreatePago = async (data: any) => {
+    await createPago(data, (trabajoId, monto, itemId) => {
+      if (itemId) {
+        const newItems = applyPagoToItem(items, itemId, monto);
+        setItems(newItems);
+      } else {
+        const trabajoItemsWithBalance = items.filter(i => i.trabajoId === trabajoId && i.saldo > 0);
+        if (trabajoItemsWithBalance.length > 0) {
+          const updatedItems = distributeGeneralPago(trabajoItemsWithBalance, monto);
+          setItems(prev => prev.map(i => {
+            const updated = updatedItems.find(ui => ui.id === i.id);
+            return updated || i;
+          }));
+        }
+      }
+      
+      setTimeout(() => {
+        recalculateTrabajo(trabajoId);
+      }, 100);
     });
-  }, [searchQuery, metodoFilter]);
+    setPagoFormOpen(false);
+  };
+
+  // Handle pago deletion
+  const handleDeletePago = async () => {
+    if (deletePagoId) {
+      await deletePago(deletePagoId, (trabajoId, monto, itemId) => {
+        if (itemId) {
+          const newItems = applyPagoToItem(items, itemId, monto);
+          setItems(newItems);
+        }
+        
+        setTimeout(() => {
+          recalculateTrabajo(trabajoId);
+          if (trabajo) {
+            recalculateClientDebt(trabajo.clienteId);
+          }
+        }, 100);
+      });
+      setDeletePagoId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Pagos y Cuentas por Cobrar</h1>
-        <p className="text-muted-foreground mt-1">
-          Gestiona los cobros y revisa el estado financiero
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Pagos y Cuentas por Cobrar</h1>
+          <p className="text-muted-foreground mt-1">
+            Gestiona los cobros y revisa el estado financiero
+          </p>
+        </div>
+        <Button onClick={() => setPagoFormOpen(true)} disabled={trabajosConDeuda.length === 0}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nuevo Pago
+        </Button>
       </div>
 
       {/* Stats */}
@@ -148,7 +216,7 @@ export default function PagosPage() {
                   </TableRow>
                 ) : (
                   clientesConDeuda.map((cliente) => {
-                    const trabajosCliente = trabajosMock.filter(
+                    const trabajosCliente = trabajos.filter(
                       t => t.clienteId === cliente.id && t.saldoPendiente > 0
                     );
                     
@@ -268,12 +336,13 @@ export default function PagosPage() {
                   <TableHead>Método</TableHead>
                   <TableHead>Referencia</TableHead>
                   <TableHead className="text-right">Monto</TableHead>
+                  <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPagos.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No se encontraron pagos
                     </TableCell>
                   </TableRow>
@@ -292,6 +361,15 @@ export default function PagosPage() {
                         <TableCell className="text-right font-semibold text-success">
                           {formatCurrency(pago.monto)}
                         </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => setDeletePagoId(pago.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -301,6 +379,25 @@ export default function PagosPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Pago Form */}
+      <PagoForm
+        open={pagoFormOpen}
+        onOpenChange={setPagoFormOpen}
+        trabajos={trabajosConDeuda}
+        onSubmit={handleCreatePago}
+        isLoading={isLoading}
+      />
+
+      {/* Delete Pago Confirm */}
+      <DeleteConfirmDialog
+        open={!!deletePagoId}
+        onOpenChange={(open) => !open && setDeletePagoId(null)}
+        onConfirm={handleDeletePago}
+        title="Eliminar pago"
+        description="¿Estás seguro de que deseas eliminar este pago? Se recalcularán los saldos."
+        isLoading={isLoading}
+      />
     </div>
   );
 }
