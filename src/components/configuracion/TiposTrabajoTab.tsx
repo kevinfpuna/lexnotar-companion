@@ -14,13 +14,15 @@ import {
   Clock,
   FileText 
 } from 'lucide-react';
-import { TipoTrabajo } from '@/types';
+import { TipoTrabajo, CategoriaTrabajo } from '@/types';
 import { TipoTrabajoForm } from '@/components/forms/TipoTrabajoForm';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
 import { formatCurrency } from '@/lib/mockData';
+import { categoriasDefault } from '@/hooks/useCategorias';
 
 interface TiposTrabajoTabProps {
   tiposTrabajo: TipoTrabajo[];
+  categorias?: CategoriaTrabajo[];
   onAdd: (tipo: Omit<TipoTrabajo, 'id' | 'fechaCreacion' | 'fechaActualizacion'>) => void;
   onUpdate: (id: string, updates: Partial<TipoTrabajo>) => void;
   onToggleActivo: (id: string) => void;
@@ -38,6 +40,7 @@ const categoriaBadgeColors: Record<TipoTrabajo['categoria'], string> = {
 
 export function TiposTrabajoTab({ 
   tiposTrabajo, 
+  categorias = categoriasDefault,
   onAdd, 
   onUpdate, 
   onToggleActivo, 
