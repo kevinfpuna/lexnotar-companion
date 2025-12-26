@@ -103,8 +103,8 @@ export default function KanbanBoard() {
       </div>
 
       {/* Kanban board - scrollable container */}
-      <div className="flex-1 overflow-auto scrollbar-thin -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="flex gap-3 md:gap-4 min-h-full pb-4">
+      <div className="flex-1 overflow-x-auto scrollbar-thin -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex gap-3 md:gap-4 h-full pb-4">
           {columns.map((column) => {
             const columnItems = getItemsByStatus(column.id);
             const isDropTarget = dragOverColumn === column.id && draggedItemId !== null;
@@ -112,14 +112,14 @@ export default function KanbanBoard() {
             return (
               <div
                 key={column.id}
-                className="flex-shrink-0 w-64 md:w-72 flex flex-col"
+                className="flex-shrink-0 w-64 md:w-72 flex flex-col h-full"
                 onDragOver={(e) => handleDragOver(e, column.id)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, column.id)}
               >
-                {/* Column header */}
+                {/* Column header - sticky */}
                 <div className={cn(
-                  "rounded-t-lg border p-2.5 md:p-3 font-semibold flex items-center justify-between text-sm md:text-base flex-shrink-0",
+                  "rounded-t-lg border p-2.5 md:p-3 font-semibold flex items-center justify-between text-sm md:text-base flex-shrink-0 sticky top-0 z-10",
                   column.color
                 )}>
                   <span className="truncate">{column.title}</span>
@@ -128,9 +128,9 @@ export default function KanbanBoard() {
                   </span>
                 </div>
 
-                {/* Column content */}
+                {/* Column content - scrollable */}
                 <div className={cn(
-                  "rounded-b-lg border border-t-0 flex-1 p-1.5 md:p-2 space-y-1.5 md:space-y-2 transition-all duration-200 overflow-y-auto scrollbar-thin",
+                  "rounded-b-lg border border-t-0 flex-1 p-1.5 md:p-2 space-y-1.5 md:space-y-2 transition-all duration-200 overflow-y-auto scrollbar-thin min-h-0",
                   isDropTarget 
                     ? "bg-primary/10 border-primary border-dashed border-2" 
                     : "bg-muted/30"
