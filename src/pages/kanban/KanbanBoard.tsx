@@ -36,6 +36,7 @@ export default function KanbanBoard() {
   const { items, trabajos, clientes, updateItemEstado, isLoading } = useApp();
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<EstadoItem | null>(null);
 
   // Get trabajo by id helper
   const getTrabajoById = (id: string) => trabajos.find(t => t.id === id);
@@ -50,9 +51,25 @@ export default function KanbanBoard() {
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragEnd = () => {
+    setDraggedItemId(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnId: EstadoItem) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    if (dragOverColumn !== columnId) {
+      setDragOverColumn(columnId);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear if leaving the column entirely
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+      setDragOverColumn(null);
+    }
   };
 
   const handleDrop = async (e: React.DragEvent, newStatus: EstadoItem) => {
@@ -64,6 +81,7 @@ export default function KanbanBoard() {
       await updateItemEstado(draggedItemId, newStatus);
     }
     setDraggedItemId(null);
+    setDragOverColumn(null);
   };
 
   const handleQuickStatusChange = async (itemId: string, newStatus: EstadoItem) => {
@@ -88,12 +106,14 @@ export default function KanbanBoard() {
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
         {columns.map((column) => {
           const columnItems = getItemsByStatus(column.id);
+          const isDropTarget = dragOverColumn === column.id && draggedItemId !== null;
           
           return (
             <div
               key={column.id}
               className="flex-shrink-0 w-72"
-              onDragOver={handleDragOver}
+              onDragOver={(e) => handleDragOver(e, column.id)}
+              onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id)}
             >
               {/* Column header */}
@@ -108,21 +128,28 @@ export default function KanbanBoard() {
               </div>
 
               {/* Column content */}
-              <div className="bg-muted/30 rounded-b-lg border border-t-0 min-h-[500px] p-2 space-y-2">
+              <div className={cn(
+                "rounded-b-lg border border-t-0 min-h-[500px] p-2 space-y-2 transition-all duration-200",
+                isDropTarget 
+                  ? "bg-primary/10 border-primary border-dashed border-2" 
+                  : "bg-muted/30"
+              )}>
                 {columnItems.map((item) => {
                   const trabajo = getTrabajoById(item.trabajoId);
                   const cliente = trabajo ? getClienteById(trabajo.clienteId) : null;
+                  const isDragging = draggedItemId === item.id;
 
                   return (
                     <div
                       key={item.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, item.id)}
+                      onDragEnd={handleDragEnd}
                       onClick={() => setSelectedItemId(item.id)}
                       className={cn(
                         "bg-card rounded-lg border border-border p-3 cursor-grab active:cursor-grabbing",
-                        "hover:shadow-md transition-shadow",
-                        draggedItemId === item.id && "opacity-50"
+                        "hover:shadow-md transition-all duration-200",
+                        isDragging && "opacity-50 scale-105 rotate-2 shadow-lg"
                       )}
                     >
                       <h4 className="font-medium text-sm mb-2">{item.nombreItem}</h4>
@@ -154,8 +181,11 @@ export default function KanbanBoard() {
                 })}
 
                 {columnItems.length === 0 && (
-                  <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">
-                    Sin items
+                  <div className={cn(
+                    "h-24 flex items-center justify-center text-sm text-muted-foreground rounded-lg border-2 border-dashed",
+                    isDropTarget ? "border-primary bg-primary/5" : "border-transparent"
+                  )}>
+                    {isDropTarget ? "Soltar aquí" : "Sin items"}
                   </div>
                 )}
               </div>
