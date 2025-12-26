@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { 
   User, 
   Building2, 
@@ -31,18 +31,28 @@ import { profesionalMock } from '@/lib/mockData';
 import { toast } from 'sonner';
 import { useTipos } from '@/hooks/useTipos';
 import { useCategorias } from '@/hooks/useCategorias';
+import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { TiposClienteTab } from '@/components/configuracion/TiposClienteTab';
 import { TiposTrabajoTab } from '@/components/configuracion/TiposTrabajoTab';
 import { EstadosKanbanTab } from '@/components/configuracion/EstadosKanbanTab';
 import { CategoriasTrabajoTab } from '@/components/configuracion/CategoriasTrabajoTab';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { ThemeSelector } from '@/components/theme/ThemeSelector';
+import { exportBackup, importBackup } from '@/lib/backup';
 
 export default function ConfiguracionPage() {
   const [profesional, setProfesional] = useState(profesionalMock);
   const [usarIva, setUsarIva] = useState(true);
   const [tasaIva, setTasaIva] = useState('10');
   const [diasAlerta, setDiasAlerta] = useState('7');
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { clientes, trabajos, items, pagos, eventos, documentos, setClientes, setTrabajos, setItems, setPagos, setEventos, setDocumentos } = useApp();
+  const { cambiarPassword } = useAuth();
 
   const {
     tiposCliente,
@@ -61,6 +71,9 @@ export default function ConfiguracionPage() {
     updateEstadoKanban,
     deleteEstadoKanban,
     reorderEstadosKanban,
+    setTiposCliente,
+    setTiposTrabajo,
+    setEstadosKanban,
   } = useTipos();
 
   const {
@@ -70,10 +83,64 @@ export default function ConfiguracionPage() {
     deleteCategoria,
     toggleCategoriaActivo,
     reorderCategorias,
+    setCategorias,
   } = useCategorias();
 
   const handleSave = () => {
     toast.success('Configuración guardada correctamente');
+  };
+
+  const handleExport = () => {
+    exportBackup({
+      clientes,
+      trabajos,
+      items,
+      pagos,
+      eventos,
+      documentos,
+      tiposCliente,
+      tiposTrabajo,
+      categorias,
+      estadosKanban,
+    });
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    await importBackup(file, (backup) => {
+      // Restaurar datos en localStorage
+      if (backup.clientes) setClientes(backup.clientes);
+      if (backup.trabajos) setTrabajos(backup.trabajos);
+      if (backup.items) setItems(backup.items);
+      if (backup.pagos) setPagos(backup.pagos);
+      if (backup.eventos) setEventos(backup.eventos);
+      if (backup.tiposCliente) setTiposCliente(backup.tiposCliente);
+      if (backup.tiposTrabajo) setTiposTrabajo(backup.tiposTrabajo);
+      if (backup.categorias) setCategorias(backup.categorias);
+      if (backup.estadosKanban) setEstadosKanban(backup.estadosKanban);
+    });
+
+    // Limpiar input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast.error('Las contraseñas no coinciden');
+      return;
+    }
+    
+    if (cambiarPassword(oldPassword, newPassword)) {
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    }
   };
 
   return (
@@ -397,15 +464,22 @@ export default function ConfiguracionPage() {
               <div className="p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground mb-4">
                   Exporta todos tus datos para tener un respaldo de seguridad. 
-                  Puedes restaurarlos en cualquier momento.
+                  Puedes restaurarlos en cualquier momento. Los archivos adjuntos no se incluyen para reducir el tamaño.
                 </p>
                 
                 <div className="flex gap-4">
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={handleExport}>
                     <Download className="h-4 w-4 mr-2" />
                     Exportar datos
                   </Button>
-                  <Button variant="outline">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleImport}
+                    className="hidden"
+                  />
+                  <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
                     <Upload className="h-4 w-4 mr-2" />
                     Importar datos
                   </Button>
@@ -414,10 +488,11 @@ export default function ConfiguracionPage() {
 
               <Separator />
 
-              <div>
-                <h4 className="font-medium mb-2">Último respaldo</h4>
+              <div className="p-4 border border-destructive/20 rounded-lg bg-destructive/5">
+                <h4 className="font-medium text-destructive mb-2">Advertencia</h4>
                 <p className="text-sm text-muted-foreground">
-                  No hay respaldos recientes
+                  Al importar un respaldo, <strong>todos los datos actuales serán reemplazados</strong>. 
+                  Esta acción no se puede deshacer. Asegúrate de exportar tus datos actuales antes de importar.
                 </p>
               </div>
             </div>
@@ -429,26 +504,46 @@ export default function ConfiguracionPage() {
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Seguridad de la Cuenta</h3>
             
-            <div className="space-y-6 max-w-md">
+            <form onSubmit={handleChangePassword} className="space-y-6 max-w-md">
               <div className="space-y-2">
                 <Label htmlFor="password-actual">Contraseña actual</Label>
-                <Input id="password-actual" type="password" />
+                <Input 
+                  id="password-actual" 
+                  type="password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  required
+                />
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="password-nueva">Nueva contraseña</Label>
-                <Input id="password-nueva" type="password" />
+                <Input 
+                  id="password-nueva" 
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={4}
+                />
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="password-confirmar">Confirmar nueva contraseña</Label>
-                <Input id="password-confirmar" type="password" />
+                <Input 
+                  id="password-confirmar" 
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={4}
+                />
               </div>
               
-              <Button>
+              <Button type="submit">
                 Cambiar contraseña
               </Button>
-            </div>
+            </form>
           </Card>
         </TabsContent>
       </Tabs>

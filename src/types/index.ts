@@ -1,5 +1,17 @@
 // LexNotar ERP - Type Definitions
 
+export interface Usuario {
+  id: string;
+  email: string;
+  username: string;
+  passwordHash: string;
+  profesionalId: string;
+  rol: 'admin' | 'usuario';
+  fechaCreacion: Date;
+  ultimoAcceso?: Date;
+  fechaActualizacion?: Date;
+}
+
 export interface Profesional {
   id: string;
   nombre: string;

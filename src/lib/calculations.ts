@@ -1,4 +1,4 @@
-import { Trabajo, Item, Pago, Cliente } from '@/types';
+import { Trabajo, Item } from '@/types';
 
 // Calculate balance for a single item
 export function calculateItemBalance(item: Item): number {
@@ -26,9 +26,9 @@ export function calculateTrabajoProgress(items: Item[]): number {
 }
 
 // Calculate total debt for a client based on their trabajos
-export function calculateClienteDeuda(trabajos: Trabajo[]): number {
+export function calculateClienteDeuda(clienteId: string, trabajos: Trabajo[]): number {
   return trabajos
-    .filter(t => t.estado !== 'Cancelado' && t.estado !== 'Borrador')
+    .filter(t => t.clienteId === clienteId && t.estado !== 'Cancelado' && t.estado !== 'Borrador')
     .reduce((sum, t) => sum + t.saldoPendiente, 0);
 }
 
@@ -89,7 +89,7 @@ export function canDeleteCliente(clienteId: string, trabajos: Trabajo[]): boolea
 }
 
 // Check if an item can be deleted (no pagos associated)
-export function canDeleteItem(itemId: string, pagos: Pago[]): boolean {
+export function canDeleteItem(itemId: string, pagos: { itemId?: string }[]): boolean {
   return !pagos.some(p => p.itemId === itemId);
 }
 

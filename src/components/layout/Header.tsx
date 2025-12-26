@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, User, Menu } from 'lucide-react';
+import { Search, Bell, User, Menu, LogOut } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +15,7 @@ import { profesionalMock, formatDate } from '@/lib/mockData';
 import { Badge } from '@/components/ui/badge';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 interface HeaderProps {
@@ -25,6 +26,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const { eventos, trabajos, items, clientes } = useApp();
+  const { usuario, logout } = useAuth();
   
   // Keyboard shortcut Cmd/Ctrl+K
   useEffect(() => {
@@ -92,6 +94,10 @@ export function Header({ onMenuClick }: HeaderProps) {
         link: `/clientes/${c.id}`
       })),
   ].slice(0, 10);
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-card border-b border-border px-4 flex items-center justify-between gap-4">
@@ -178,8 +184,9 @@ export function Header({ onMenuClick }: HeaderProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>
-              {profesionalMock.nombre} {profesionalMock.apellido}
+            <DropdownMenuLabel className="flex flex-col">
+              <span>{usuario?.username || profesionalMock.nombre}</span>
+              <span className="text-xs font-normal text-muted-foreground">{usuario?.email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate('/configuracion')}>
@@ -189,7 +196,8 @@ export function Header({ onMenuClick }: HeaderProps) {
               Configuración
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
               Cerrar sesión
             </DropdownMenuItem>
           </DropdownMenuContent>
