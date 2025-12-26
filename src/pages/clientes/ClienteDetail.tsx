@@ -1,4 +1,5 @@
-import { useParams, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft,
   Phone,
@@ -22,23 +23,35 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { 
-  getClienteById,
-  getTipoClienteById,
-  getTrabajosByClienteId,
-  getTipoTrabajoById,
-  pagosMock,
-  formatCurrency,
-  formatDate
-} from '@/lib/mockData';
+import { useApp } from '@/contexts/AppContext';
+import { ClienteForm } from '@/components/forms/ClienteForm';
+import { TrabajoForm } from '@/components/forms/TrabajoForm';
+import { formatCurrency, formatDate } from '@/lib/mockData';
 
 export default function ClienteDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { 
+    getClienteById,
+    getTipoClienteById,
+    getTrabajosByClienteId,
+    getTipoTrabajoById,
+    pagos,
+    clientes,
+    tiposCliente,
+    tiposTrabajo,
+    updateCliente,
+    createTrabajo,
+    isLoading
+  } = useApp();
+
+  const [clienteFormOpen, setClienteFormOpen] = useState(false);
+  const [trabajoFormOpen, setTrabajoFormOpen] = useState(false);
   
   const cliente = getClienteById(id || '');
   const tipoCliente = cliente ? getTipoClienteById(cliente.tipoClienteId) : undefined;
   const trabajos = cliente ? getTrabajosByClienteId(cliente.id) : [];
-  const pagosCliente = pagosMock.filter(p => 
+  const pagosCliente = pagos.filter(p => 
     trabajos.some(t => t.id === p.trabajoId)
   );
 
@@ -52,6 +65,17 @@ export default function ClienteDetail() {
       </div>
     );
   }
+
+  const handleUpdateCliente = async (data: any) => {
+    await updateCliente(cliente.id, data);
+    setClienteFormOpen(false);
+  };
+
+  const handleCreateTrabajo = async (data: any, items: any[]) => {
+    const newTrabajo = await createTrabajo(data, items);
+    setTrabajoFormOpen(false);
+    navigate(`/trabajos/${newTrabajo.id}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -83,7 +107,7 @@ export default function ClienteDetail() {
               </p>
             </div>
           </div>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setClienteFormOpen(true)}>
             <Edit className="h-4 w-4 mr-2" />
             Editar
           </Button>
@@ -160,11 +184,9 @@ export default function ClienteDetail() {
           <div className="card-elevated overflow-hidden">
             <div className="p-4 border-b border-border flex items-center justify-between">
               <h3 className="font-semibold">Trabajos del cliente</h3>
-              <Button size="sm" asChild>
-                <Link to={`/trabajos/nuevo?cliente=${cliente.id}`}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuevo trabajo
-                </Link>
+              <Button size="sm" onClick={() => setTrabajoFormOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo trabajo
               </Button>
             </div>
             <Table>
@@ -280,6 +302,27 @@ export default function ClienteDetail() {
           <p className="text-muted-foreground">{cliente.notasInternas}</p>
         </div>
       )}
+
+      {/* Cliente Form Dialog */}
+      <ClienteForm
+        open={clienteFormOpen}
+        onOpenChange={setClienteFormOpen}
+        tiposCliente={tiposCliente}
+        onSubmit={handleUpdateCliente}
+        isLoading={isLoading}
+        defaultValues={cliente}
+        mode="edit"
+      />
+
+      {/* Trabajo Form Dialog */}
+      <TrabajoForm
+        open={trabajoFormOpen}
+        onOpenChange={setTrabajoFormOpen}
+        clientes={clientes.filter(c => c.id === cliente.id)}
+        tiposTrabajo={tiposTrabajo}
+        onSubmit={handleCreateTrabajo}
+        isLoading={isLoading}
+      />
     </div>
   );
 }
