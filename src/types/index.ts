@@ -169,12 +169,20 @@ export interface EventoCalendario {
   fechaCreacion: Date;
 }
 
-export type TipoDocumento = 'CI' | 'Poder' | 'Título' | 'Contrato' | 'Presupuesto' | 'Acta' | 'Sentencia' | 'Comprobante pago' | 'Otro';
+export interface TipoDocumento {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  activo: boolean;
+  orden: number;
+  fechaCreacion: Date;
+  fechaActualizacion: Date;
+}
 
 export interface Documento {
   id: string;
   nombre: string;
-  tipo: TipoDocumento;
+  tipo: string; // Referencia al nombre del TipoDocumento
   archivoBase64: string;
   mimeType: string;
   size: number; // KB

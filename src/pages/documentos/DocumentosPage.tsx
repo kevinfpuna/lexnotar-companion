@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { TipoDocumento } from '@/types';
 import { useApp } from '@/contexts/AppContext';
 import { DocumentoCard } from '@/components/documentos/DocumentoCard';
 import { DocumentoUpload } from '@/components/documentos/DocumentoUpload';
@@ -24,7 +23,7 @@ import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
 import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
 import { DateRange } from 'react-day-picker';
 
-const tiposDocumento: TipoDocumento[] = ['CI', 'Poder', 'Título', 'Contrato', 'Presupuesto', 'Acta', 'Sentencia', 'Comprobante pago', 'Otro'];
+const tiposDocumento = ['CI', 'Poder', 'Título', 'Contrato', 'Presupuesto', 'Acta', 'Sentencia', 'Comprobante pago', 'Otro'];
 
 export default function DocumentosPage() {
   const { 
@@ -97,7 +96,7 @@ export default function DocumentosPage() {
     setSearchQuery('');
   };
 
-  const handleUpload = async (files: File[], metadata: { tipo: TipoDocumento; descripcion?: string }) => {
+  const handleUpload = async (files: File[], metadata: { tipo: string; descripcion?: string }) => {
     for (const file of files) {
       await createDocumento(file, {
         tipo: metadata.tipo,

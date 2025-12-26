@@ -19,11 +19,10 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
-import { TipoDocumento } from '@/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const tiposDocumento: TipoDocumento[] = [
+const tiposDocumento = [
   'CI', 'Poder', 'Título', 'Contrato', 'Presupuesto', 
   'Acta', 'Sentencia', 'Comprobante pago', 'Otro'
 ];
@@ -32,7 +31,7 @@ interface DocumentoUploadProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpload: (files: File[], metadata: {
-    tipo: TipoDocumento;
+    tipo: string;
     descripcion?: string;
     clienteId?: string;
     trabajoId?: string;
@@ -72,7 +71,7 @@ export function DocumentoUpload({
   isLoading,
 }: DocumentoUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
-  const [tipo, setTipo] = useState<TipoDocumento>('Otro');
+  const [tipo, setTipo] = useState('Otro');
   const [descripcion, setDescripcion] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -256,7 +255,7 @@ export function DocumentoUpload({
           <div className="space-y-3">
             <div>
               <Label>Tipo de documento *</Label>
-              <Select value={tipo} onValueChange={(v) => setTipo(v as TipoDocumento)}>
+              <Select value={tipo} onValueChange={setTipo}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
