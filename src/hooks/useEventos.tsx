@@ -44,7 +44,7 @@ export function useEventos() {
     return newEvento;
   }, []);
 
-  const updateEvento = useCallback(async (id: string, data: Partial<EventoFormData>): Promise<void> => {
+  const updateEvento = useCallback(async (id: string, data: Partial<EventoFormData & Pick<EventoCalendario, 'recordatorioMostrado' | 'fechaEvento'>>): Promise<void> => {
     setIsLoading(true);
     await new Promise(resolve => setTimeout(resolve, 500));
     
@@ -53,7 +53,10 @@ export function useEventos() {
     ));
     
     setIsLoading(false);
-    toast.success('Evento actualizado');
+    // Only show toast for user-initiated updates, not for recordatorio updates
+    if (!('recordatorioMostrado' in data)) {
+      toast.success('Evento actualizado');
+    }
   }, []);
 
   const deleteEvento = useCallback(async (id: string): Promise<boolean> => {
