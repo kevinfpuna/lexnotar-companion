@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   User, 
   Building2, 
@@ -7,7 +7,9 @@ import {
   Upload,
   Save,
   Settings,
-  Layers
+  Layers,
+  Trash2,
+  Image
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,11 +25,13 @@ import {
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { profesionalMock } from '@/lib/mockData';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { useTipos } from '@/hooks/useTipos';
 import { useCategorias } from '@/hooks/useCategorias';
 import { useTiposDocumento } from '@/hooks/useTiposDocumento';
+import { useProfesional } from '@/hooks/useProfesional';
+import { useConfiguracion } from '@/hooks/useConfiguracion';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { TiposClienteTab } from '@/components/configuracion/TiposClienteTab';
@@ -40,15 +44,31 @@ import { ThemeSelector } from '@/components/theme/ThemeSelector';
 import { exportBackup, importBackup } from '@/lib/backup';
 
 export default function ConfiguracionPage() {
-  const [profesional, setProfesional] = useState(profesionalMock);
-  const [usarIva, setUsarIva] = useState(true);
-  const [tasaIva, setTasaIva] = useState('10');
-  const [diasAlerta, setDiasAlerta] = useState('7');
+  const { 
+    profesional, 
+    updateProfesional, 
+    uploadLogo, 
+    uploadFirma, 
+    deleteLogo, 
+    deleteFirma 
+  } = useProfesional();
+  
+  const { config, updateConfig, resetConfig } = useConfiguracion();
+  
+  const [formData, setFormData] = useState(profesional);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [tiposSubTab, setTiposSubTab] = useState('categorias');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const firmaInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync formData when profesional changes
+  useEffect(() => {
+    setFormData(profesional);
+  }, [profesional]);
 
   const { clientes, trabajos, items, pagos, eventos, documentos, setClientes, setTrabajos, setItems, setPagos, setEventos, setDocumentos } = useApp();
   const { cambiarPassword } = useAuth();
@@ -94,8 +114,20 @@ export default function ConfiguracionPage() {
     setTiposDocumento,
   } = useTiposDocumento();
 
-  const handleSave = () => {
-    toast.success('Configuración guardada correctamente');
+  const handleSaveProfesional = () => {
+    updateProfesional(formData);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadLogo(file);
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
+
+  const handleFirmaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFirma(file);
+    if (firmaInputRef.current) firmaInputRef.current.value = '';
   };
 
   const handleExport = () => {
@@ -159,10 +191,6 @@ export default function ConfiguracionPage() {
             Personaliza tu cuenta y preferencias del sistema
           </p>
         </div>
-        <Button onClick={handleSave}>
-          <Save className="h-4 w-4 mr-2" />
-          Guardar cambios
-        </Button>
       </div>
 
       <Tabs defaultValue="tipos" className="w-full">
@@ -189,11 +217,11 @@ export default function ConfiguracionPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: TIPOS - Agrupa Categorías, Tipos Cliente, Tipos Trabajo, Estados Kanban, Tipos Documentos */}
+        {/* TAB 1: TIPOS */}
         <TabsContent value="tipos" className="mt-6">
           <Card className="p-6">
             <Tabs value={tiposSubTab} onValueChange={setTiposSubTab}>
-              <TabsList className="mb-6">
+              <TabsList className="mb-6 flex-wrap h-auto">
                 <TabsTrigger value="categorias">Categorías</TabsTrigger>
                 <TabsTrigger value="tipos-cliente">Tipos Cliente</TabsTrigger>
                 <TabsTrigger value="tipos-trabajo">Tipos Trabajo</TabsTrigger>
@@ -257,8 +285,8 @@ export default function ConfiguracionPage() {
           </Card>
         </TabsContent>
 
-        {/* TAB 2: PROFESIONAL - Datos del profesional, logo y firma */}
-        <TabsContent value="profesional" className="mt-6">
+        {/* TAB 2: PROFESIONAL */}
+        <TabsContent value="profesional" className="mt-6 space-y-6">
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Datos del Profesional</h3>
             
@@ -267,8 +295,8 @@ export default function ConfiguracionPage() {
                 <Label htmlFor="nombre">Nombre</Label>
                 <Input 
                   id="nombre"
-                  value={profesional.nombre}
-                  onChange={(e) => setProfesional({...profesional, nombre: e.target.value})}
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
                 />
               </div>
               
@@ -276,8 +304,8 @@ export default function ConfiguracionPage() {
                 <Label htmlFor="apellido">Apellido</Label>
                 <Input 
                   id="apellido"
-                  value={profesional.apellido}
-                  onChange={(e) => setProfesional({...profesional, apellido: e.target.value})}
+                  value={formData.apellido}
+                  onChange={(e) => setFormData({...formData, apellido: e.target.value})}
                 />
               </div>
               
@@ -285,8 +313,8 @@ export default function ConfiguracionPage() {
                 <Label htmlFor="cedula">Cédula de Identidad</Label>
                 <Input 
                   id="cedula"
-                  value={profesional.cedula}
-                  onChange={(e) => setProfesional({...profesional, cedula: e.target.value})}
+                  value={formData.cedula}
+                  onChange={(e) => setFormData({...formData, cedula: e.target.value})}
                 />
               </div>
               
@@ -294,8 +322,8 @@ export default function ConfiguracionPage() {
                 <Label htmlFor="telefono">Teléfono</Label>
                 <Input 
                   id="telefono"
-                  value={profesional.telefono}
-                  onChange={(e) => setProfesional({...profesional, telefono: e.target.value})}
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({...formData, telefono: e.target.value})}
                 />
               </div>
               
@@ -304,8 +332,8 @@ export default function ConfiguracionPage() {
                 <Input 
                   id="email"
                   type="email"
-                  value={profesional.email}
-                  onChange={(e) => setProfesional({...profesional, email: e.target.value})}
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
                 />
               </div>
               
@@ -313,69 +341,238 @@ export default function ConfiguracionPage() {
                 <Label htmlFor="domicilio">Domicilio</Label>
                 <Input 
                   id="domicilio"
-                  value={profesional.domicilio}
-                  onChange={(e) => setProfesional({...profesional, domicilio: e.target.value})}
+                  value={formData.domicilio}
+                  onChange={(e) => setFormData({...formData, domicilio: e.target.value})}
                 />
               </div>
             </div>
 
-            <Separator className="my-6" />
-
-            <h3 className="font-semibold mb-4">Logo y Firma</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label>Logo del Estudio</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Arrastra una imagen o haz clic para seleccionar
-                  </p>
-                  <Button variant="outline" size="sm" className="mt-2">
-                    Subir logo
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Firma Digital</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Sube tu firma para documentos PDF
-                  </p>
-                  <Button variant="outline" size="sm" className="mt-2">
-                    Subir firma
-                  </Button>
-                </div>
-              </div>
+            <div className="flex justify-end mt-6">
+              <Button onClick={handleSaveProfesional}>
+                <Save className="h-4 w-4 mr-2" />
+                Guardar cambios
+              </Button>
             </div>
+          </Card>
+
+          {/* Logo */}
+          <Card className="p-6">
+            <h3 className="font-semibold mb-4">Logo de la Oficina</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Sube el logo de tu oficina para usar en presupuestos y documentos (máx. 2MB)
+            </p>
+            
+            {profesional.logoBase64 ? (
+              <div className="space-y-4">
+                <div className="border rounded-lg p-4 bg-muted/30 flex items-start gap-4">
+                  <img 
+                    src={profesional.logoBase64} 
+                    alt="Logo" 
+                    className="h-24 w-24 object-contain border rounded"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">{profesional.logoUrl}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Última actualización: {format(new Date(profesional.fechaActualizacion), 'dd/MM/yyyy HH:mm')}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive"
+                    onClick={deleteLogo}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => logoInputRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Cambiar logo
+                </Button>
+              </div>
+            ) : (
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Arrastra una imagen o haz clic para seleccionar
+                </p>
+                <Button variant="outline" size="sm" className="mt-2">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Subir logo
+                </Button>
+              </div>
+            )}
+            
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleLogoUpload}
+              className="hidden"
+            />
+          </Card>
+
+          {/* Firma Digital */}
+          <Card className="p-6">
+            <h3 className="font-semibold mb-4">Firma Digital</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Sube una imagen de tu firma para usar en documentos (máx. 2MB)
+            </p>
+            
+            {profesional.firmaBase64 ? (
+              <div className="space-y-4">
+                <div className="border rounded-lg p-4 bg-muted/30 flex items-start gap-4">
+                  <img 
+                    src={profesional.firmaBase64} 
+                    alt="Firma" 
+                    className="h-24 w-auto object-contain border rounded bg-white"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">{profesional.firmaDigitalPath}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Última actualización: {format(new Date(profesional.fechaActualizacion), 'dd/MM/yyyy HH:mm')}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive"
+                    onClick={deleteFirma}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => firmaInputRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Cambiar firma
+                </Button>
+              </div>
+            ) : (
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => firmaInputRef.current?.click()}
+              >
+                <Image className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Sube tu firma para documentos PDF
+                </p>
+                <Button variant="outline" size="sm" className="mt-2">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Subir firma
+                </Button>
+              </div>
+            )}
+            
+            <input
+              ref={firmaInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFirmaUpload}
+              className="hidden"
+            />
           </Card>
         </TabsContent>
 
-        {/* TAB 3: GENERAL - Negocio, moneda, IVA, alertas */}
+        {/* TAB 3: GENERAL */}
         <TabsContent value="general" className="mt-6 space-y-6">
-          <Card className="p-6">
-            <h3 className="font-semibold mb-4">Configuración de Negocio</h3>
-            
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="p-6 space-y-6">
+            {/* Facturación */}
+            <div>
+              <h3 className="font-semibold mb-4">Facturación</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Usar IVA en presupuestos</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Incluir IVA automáticamente en presupuestos
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.usarIva}
+                    onCheckedChange={(checked) => updateConfig({ usarIva: checked }, true)}
+                  />
+                </div>
+
+                {config.usarIva && (
+                  <div className="space-y-2 ml-4 pl-4 border-l-2">
+                    <Label htmlFor="tasa-iva">Tasa de IVA (%)</Label>
+                    <Input
+                      id="tasa-iva"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={config.tasaIva}
+                      onChange={(e) => updateConfig({ tasaIva: parseFloat(e.target.value) || 0 }, true)}
+                      className="w-32"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Alertas */}
+            <div>
+              <h3 className="font-semibold mb-4">Alertas y Notificaciones</h3>
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="moneda">Moneda predeterminada</Label>
-                  <Select value={profesional.monedaDefault}>
-                    <SelectTrigger>
+                  <Label htmlFor="dias-alerta">Días de anticipación para alertas</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Mostrar alertas X días antes de vencimientos
+                  </p>
+                  <Input
+                    id="dias-alerta"
+                    type="number"
+                    min="1"
+                    max="30"
+                    value={config.diasAlerta}
+                    onChange={(e) => updateConfig({ diasAlerta: parseInt(e.target.value) || 7 }, true)}
+                    className="w-32"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Formato */}
+            <div>
+              <h3 className="font-semibold mb-4">Formato</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="moneda">Moneda por defecto</Label>
+                  <Select
+                    value={config.monedaDefault}
+                    onValueChange={(value) => updateConfig({ monedaDefault: value }, true)}
+                  >
+                    <SelectTrigger id="moneda">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="PYG">Guaraníes (PYG)</SelectItem>
-                      <SelectItem value="USD">Dólares (USD)</SelectItem>
+                      <SelectItem value="PYG">PYG (Guaraníes)</SelectItem>
+                      <SelectItem value="USD">USD (Dólares)</SelectItem>
+                      <SelectItem value="EUR">EUR (Euros)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="formato">Formato de fecha</Label>
-                  <Select value={profesional.formatoFecha}>
-                    <SelectTrigger>
+                  <Label htmlFor="formato-fecha">Formato de fecha</Label>
+                  <Select
+                    value={config.formatoFecha}
+                    onValueChange={(value) => updateConfig({ formatoFecha: value }, true)}
+                  >
+                    <SelectTrigger id="formato-fecha">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -386,54 +583,23 @@ export default function ConfiguracionPage() {
                   </Select>
                 </div>
               </div>
+            </div>
 
-              <Separator />
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Usar IVA en presupuestos</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Incluir IVA en los cálculos de presupuestos
-                    </p>
-                  </div>
-                  <Switch checked={usarIva} onCheckedChange={setUsarIva} />
-                </div>
-
-                {usarIva && (
-                  <div className="space-y-2 max-w-xs">
-                    <Label htmlFor="tasa-iva">Tasa de IVA (%)</Label>
-                    <Input 
-                      id="tasa-iva"
-                      type="number"
-                      value={tasaIva}
-                      onChange={(e) => setTasaIva(e.target.value)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2 max-w-xs">
-                <Label htmlFor="dias-alerta">Días para alertar vencimientos</Label>
-                <Input 
-                  id="dias-alerta"
-                  type="number"
-                  value={diasAlerta}
-                  onChange={(e) => setDiasAlerta(e.target.value)}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Mostrar alertas X días antes de un vencimiento
-                </p>
-              </div>
+            <div className="flex justify-end pt-4 border-t">
+              <Button variant="outline" onClick={() => {
+                if (confirm('¿Restablecer configuración a valores por defecto?')) {
+                  resetConfig();
+                }
+              }}>
+                Restablecer por defecto
+              </Button>
             </div>
           </Card>
 
           <NotificationSettings />
         </TabsContent>
 
-        {/* TAB 4: SISTEMA - Tema, respaldo */}
+        {/* TAB 4: SISTEMA */}
         <TabsContent value="sistema" className="mt-6 space-y-6">
           <ThemeSelector />
           
@@ -479,7 +645,7 @@ export default function ConfiguracionPage() {
           </Card>
         </TabsContent>
 
-        {/* TAB 5: SEGURIDAD - Cambio de contraseña */}
+        {/* TAB 5: SEGURIDAD */}
         <TabsContent value="seguridad" className="mt-6">
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Cambiar Contraseña</h3>
