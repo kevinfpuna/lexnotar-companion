@@ -10,8 +10,7 @@ import {
   Trash2, 
   GripVertical,
   Lock,
-  Check,
-  X
+  Check
 } from 'lucide-react';
 import {
   Dialog,
@@ -19,21 +18,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { EstadoKanban } from '@/hooks/useTipos';
 import { toast } from 'sonner';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface EstadosKanbanTabProps {
   estadosKanban: EstadoKanban[];
   onAdd: (nombre: string, color: string) => void;
   onUpdate: (id: string, updates: Partial<EstadoKanban>) => void;
   onDelete: (id: string) => void;
+  onReorder: (newOrder: EstadoKanban[]) => void;
 }
 
 const colorOptions = [
@@ -48,16 +58,100 @@ const colorOptions = [
   { value: 'bg-cyan-100 text-cyan-800 border-cyan-200', label: 'Cian', preview: 'bg-cyan-400' },
 ];
 
+function SortableEstadoItem({ 
+  estado, 
+  onEdit, 
+  onDelete,
+}: { 
+  estado: EstadoKanban; 
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: estado.id, disabled: estado.fijo });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className={`touch-none ${estado.fijo ? 'cursor-not-allowed opacity-30' : 'cursor-grab active:cursor-grabbing'}`}
+        disabled={estado.fijo}
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </button>
+      
+      <div className={`w-3 h-3 rounded-full ${colorOptions.find(c => c.value === estado.color)?.preview || 'bg-gray-400'}`} />
+      
+      <span className="flex-1 font-medium">{estado.nombre}</span>
+      
+      {estado.fijo && (
+        <Badge variant="outline" className="gap-1">
+          <Lock className="h-3 w-3" />
+          Fijo
+        </Badge>
+      )}
+      
+      <div className="flex items-center gap-1">
+        {!estado.fijo && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onEdit}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function EstadosKanbanTab({ 
   estadosKanban, 
   onAdd, 
   onUpdate, 
-  onDelete 
+  onDelete,
+  onReorder,
 }: EstadosKanbanTabProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingEstado, setEditingEstado] = useState<EstadoKanban | null>(null);
   const [nombre, setNombre] = useState('');
   const [color, setColor] = useState(colorOptions[1].value);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const handleOpenForm = (estado?: EstadoKanban) => {
     if (estado) {
@@ -103,13 +197,24 @@ export function EstadosKanbanTab({
     toast.success('Estado eliminado');
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = estadosKanban.findIndex(e => e.id === active.id);
+      const newIndex = estadosKanban.findIndex(e => e.id === over.id);
+      const reordered = arrayMove(estadosKanban, oldIndex, newIndex);
+      onReorder(reordered);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold">Estados del Kanban</h3>
           <p className="text-sm text-muted-foreground">
-            Personaliza las columnas del tablero Kanban. "Pendiente" y "Completado" son fijos.
+            Personaliza las columnas del tablero Kanban. "Pendiente" y "Completado" son fijos. Arrastra para reordenar.
           </p>
         </div>
         <Button onClick={() => handleOpenForm()}>
@@ -119,50 +224,24 @@ export function EstadosKanbanTab({
       </div>
 
       <Card className="p-4">
-        <div className="space-y-2">
-          {estadosKanban.map((estado, index) => (
-            <div 
-              key={estado.id}
-              className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-            >
-              <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
-              
-              <div className={`w-3 h-3 rounded-full ${colorOptions.find(c => c.value === estado.color)?.preview || 'bg-gray-400'}`} />
-              
-              <span className="flex-1 font-medium">{estado.nombre}</span>
-              
-              {estado.fijo && (
-                <Badge variant="outline" className="gap-1">
-                  <Lock className="h-3 w-3" />
-                  Fijo
-                </Badge>
-              )}
-              
-              <div className="flex items-center gap-1">
-                {!estado.fijo && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleOpenForm(estado)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => handleDelete(estado.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-              </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={estadosKanban.map(e => e.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {estadosKanban.map((estado) => (
+                <SortableEstadoItem
+                  key={estado.id}
+                  estado={estado}
+                  onEdit={() => handleOpenForm(estado)}
+                  onDelete={() => handleDelete(estado.id)}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
 
         <p className="text-xs text-muted-foreground mt-4">
           Los ítems se mueven entre estos estados en el tablero Kanban. 

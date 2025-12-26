@@ -9,7 +9,9 @@ import {
   Plus,
   Edit,
   Trash2,
-  Receipt
+  Receipt,
+  Download,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -32,13 +34,28 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/contexts/AppContext';
-import { formatCurrency, formatDate } from '@/lib/mockData';
+import { formatCurrency, formatDate, profesionalMock } from '@/lib/mockData';
 import { EstadoItem, EstadoTrabajo } from '@/types';
 import { ItemForm } from '@/components/forms/ItemForm';
 import { PagoForm } from '@/components/forms/PagoForm';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
 import { applyPagoToItem, distributeGeneralPago, calculateClienteDeuda } from '@/lib/calculations';
 import { toast } from 'sonner';
+import { generateTrabajoPDF } from '@/lib/pdfGenerator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const estadoItemOptions: EstadoItem[] = ['Pendiente', 'En proceso', 'Mesa entrada', 'Mesa salida', 'Listo retirar', 'Completado'];
 const estadoTrabajoOptions: EstadoTrabajo[] = ['Borrador', 'Pendiente', 'En proceso', 'Completado', 'Cancelado'];
@@ -72,6 +89,8 @@ export default function TrabajoDetail() {
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
   const [deletePagoId, setDeletePagoId] = useState<string | null>(null);
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [pdfTipo, setPdfTipo] = useState<'presupuesto' | 'factura'>('presupuesto');
   
   const trabajo = getTrabajoById(id || '');
   const cliente = trabajo ? clientes.find(c => c.id === trabajo.clienteId) : undefined;
@@ -176,6 +195,23 @@ export default function TrabajoDetail() {
     }
   };
 
+  const handleGeneratePDF = () => {
+    if (!trabajo || !cliente) return;
+    
+    generateTrabajoPDF({
+      profesional: profesionalMock,
+      cliente,
+      trabajo,
+      items: trabajoItems,
+      tipo: pdfTipo,
+      incluirIVA: true,
+      tasaIVA: 10,
+    });
+    
+    toast.success(`${pdfTipo === 'presupuesto' ? 'Presupuesto' : 'Factura'} generado exitosamente`);
+    setPdfDialogOpen(false);
+  };
+
   const editingItemData = editingItem ? trabajoItems.find(i => i.id === editingItem) : null;
 
   return (
@@ -209,10 +245,25 @@ export default function TrabajoDetail() {
             <p className="text-muted-foreground mt-1">{trabajo.descripcionTrabajo}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
-              <FileText className="h-4 w-4 mr-2" />
-              Presupuesto PDF
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Generar PDF
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => { setPdfTipo('presupuesto'); setPdfDialogOpen(true); }}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Presupuesto
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setPdfTipo('factura'); setPdfDialogOpen(true); }}>
+                  <Receipt className="h-4 w-4 mr-2" />
+                  Factura / Recibo
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
@@ -536,6 +587,49 @@ export default function TrabajoDetail() {
         description="¿Estás seguro de que deseas eliminar este pago? Se recalcularán los saldos."
         isLoading={isLoading}
       />
+
+      {/* PDF Generation Dialog */}
+      <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Generar {pdfTipo === 'presupuesto' ? 'Presupuesto' : 'Factura'}
+            </DialogTitle>
+            <DialogDescription>
+              Se generará un PDF con los datos del trabajo y los ítems asociados.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Cliente:</span>
+              <span className="font-medium">{cliente?.nombreCompleto}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Trabajo:</span>
+              <span className="font-medium">{trabajo.nombreTrabajo}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Total ítems:</span>
+              <span className="font-medium">{trabajoItems.length}</span>
+            </div>
+            <div className="flex justify-between text-sm border-t pt-2">
+              <span className="text-muted-foreground">Monto total:</span>
+              <span className="font-bold">{formatCurrency(trabajo.costoFinal)}</span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPdfDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleGeneratePDF}>
+              <Download className="h-4 w-4 mr-2" />
+              Generar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

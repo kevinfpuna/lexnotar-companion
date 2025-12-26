@@ -10,7 +10,8 @@ import {
   Save,
   Users,
   Briefcase,
-  Columns
+  Columns,
+  FolderOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,9 +30,11 @@ import { Separator } from '@/components/ui/separator';
 import { profesionalMock } from '@/lib/mockData';
 import { toast } from 'sonner';
 import { useTipos } from '@/hooks/useTipos';
+import { useCategorias } from '@/hooks/useCategorias';
 import { TiposClienteTab } from '@/components/configuracion/TiposClienteTab';
 import { TiposTrabajoTab } from '@/components/configuracion/TiposTrabajoTab';
 import { EstadosKanbanTab } from '@/components/configuracion/EstadosKanbanTab';
+import { CategoriasTrabajoTab } from '@/components/configuracion/CategoriasTrabajoTab';
 
 export default function ConfiguracionPage() {
   const [profesional, setProfesional] = useState(profesionalMock);
@@ -55,7 +58,17 @@ export default function ConfiguracionPage() {
     addEstadoKanban,
     updateEstadoKanban,
     deleteEstadoKanban,
+    reorderEstadosKanban,
   } = useTipos();
+
+  const {
+    categorias,
+    addCategoria,
+    updateCategoria,
+    deleteCategoria,
+    toggleCategoriaActivo,
+    reorderCategorias,
+  } = useCategorias();
 
   const handleSave = () => {
     toast.success('Configuración guardada correctamente');
@@ -77,8 +90,12 @@ export default function ConfiguracionPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="tipos-cliente" className="w-full">
+      <Tabs defaultValue="categorias" className="w-full">
         <TabsList className="flex-wrap h-auto gap-1 w-full justify-start">
+          <TabsTrigger value="categorias" className="gap-1.5">
+            <FolderOpen className="h-4 w-4" />
+            <span className="hidden sm:inline">Categorías</span>
+          </TabsTrigger>
           <TabsTrigger value="tipos-cliente" className="gap-1.5">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Tipos Cliente</span>
@@ -113,6 +130,18 @@ export default function ConfiguracionPage() {
           </TabsTrigger>
         </TabsList>
 
+        {/* Categorías de Trabajo */}
+        <TabsContent value="categorias" className="mt-6">
+          <CategoriasTrabajoTab
+            categorias={categorias}
+            onAdd={addCategoria}
+            onUpdate={updateCategoria}
+            onDelete={deleteCategoria}
+            onToggleActivo={toggleCategoriaActivo}
+            onReorder={reorderCategorias}
+          />
+        </TabsContent>
+
         {/* Tipos de Cliente */}
         <TabsContent value="tipos-cliente" className="mt-6">
           <TiposClienteTab
@@ -128,6 +157,7 @@ export default function ConfiguracionPage() {
         <TabsContent value="tipos-trabajo" className="mt-6">
           <TiposTrabajoTab
             tiposTrabajo={tiposTrabajo}
+            categorias={categorias}
             onAdd={addTipoTrabajo}
             onUpdate={updateTipoTrabajo}
             onToggleActivo={toggleTipoTrabajoActivo}
@@ -143,6 +173,7 @@ export default function ConfiguracionPage() {
             onAdd={addEstadoKanban}
             onUpdate={updateEstadoKanban}
             onDelete={deleteEstadoKanban}
+            onReorder={reorderEstadosKanban}
           />
         </TabsContent>
 
