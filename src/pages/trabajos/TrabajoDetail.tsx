@@ -12,7 +12,8 @@ import {
   Receipt,
   Download,
   ChevronDown,
-  Upload
+  Upload,
+  History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -46,6 +47,7 @@ import { DocumentoViewer } from '@/components/documentos/DocumentoViewer';
 import { applyPagoToItem, distributeGeneralPago, calculateClienteDeuda } from '@/lib/calculations';
 import { toast } from 'sonner';
 import { generateTrabajoPDF } from '@/lib/pdfGenerator';
+import { TrabajoTimeline } from '@/components/trabajo/TrabajoTimeline';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -361,6 +363,10 @@ export default function TrabajoDetail() {
         <TabsList>
           <TabsTrigger value="items">Pasos ({trabajoItems.length})</TabsTrigger>
           <TabsTrigger value="pagos">Pagos ({trabajoPagos.length})</TabsTrigger>
+          <TabsTrigger value="historial">
+            <History className="h-4 w-4 mr-2" />
+            Historial
+          </TabsTrigger>
           <TabsTrigger value="documentos">Documentos</TabsTrigger>
           <TabsTrigger value="notas">Notas</TabsTrigger>
         </TabsList>
@@ -515,6 +521,21 @@ export default function TrabajoDetail() {
                 )}
               </TableBody>
             </Table>
+          </div>
+        </TabsContent>
+
+        {/* Historial/Timeline tab */}
+        <TabsContent value="historial" className="mt-4">
+          <div className="card-elevated p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <History className="h-5 w-5 text-muted-foreground" />
+              <h3 className="font-semibold">Historial del Trabajo</h3>
+            </div>
+            <TrabajoTimeline 
+              trabajo={trabajo} 
+              items={trabajoItems} 
+              pagos={trabajoPagos} 
+            />
           </div>
         </TabsContent>
 
