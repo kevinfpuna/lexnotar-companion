@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Documento, TipoDocumento } from '@/types';
+import { Documento } from '@/types';
 import { toast } from 'sonner';
 import { generateId } from '@/lib/calculations';
 import { useLocalStorage } from './useLocalStorage';
@@ -111,7 +111,7 @@ const documentosMock: Documento[] = [
 ];
 
 interface CreateDocumentoData {
-  tipo: TipoDocumento;
+  tipo: string;
   clienteId?: string;
   trabajoId?: string;
   itemId?: string;

@@ -32,7 +32,7 @@ import { DocumentoUpload } from '@/components/documentos/DocumentoUpload';
 import { DocumentoViewer } from '@/components/documentos/DocumentoViewer';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
 import { formatCurrency, formatDate } from '@/lib/mockData';
-import { TipoDocumento } from '@/types';
+
 
 export default function ClienteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -91,7 +91,7 @@ export default function ClienteDetail() {
     navigate(`/trabajos/${newTrabajo.id}`);
   };
 
-  const handleUploadDocumento = async (files: File[], metadata: { tipo: TipoDocumento; descripcion?: string }) => {
+  const handleUploadDocumento = async (files: File[], metadata: { tipo: string; descripcion?: string }) => {
     for (const file of files) {
       await createDocumento(file, {
         tipo: metadata.tipo,

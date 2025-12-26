@@ -2,16 +2,12 @@ import { useState, useRef } from 'react';
 import { 
   User, 
   Building2, 
-  Bell, 
-  Database,
   Shield,
   Download,
   Upload,
   Save,
-  Users,
-  Briefcase,
-  Columns,
-  FolderOpen
+  Settings,
+  Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,12 +27,14 @@ import { profesionalMock } from '@/lib/mockData';
 import { toast } from 'sonner';
 import { useTipos } from '@/hooks/useTipos';
 import { useCategorias } from '@/hooks/useCategorias';
+import { useTiposDocumento } from '@/hooks/useTiposDocumento';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { TiposClienteTab } from '@/components/configuracion/TiposClienteTab';
 import { TiposTrabajoTab } from '@/components/configuracion/TiposTrabajoTab';
 import { EstadosKanbanTab } from '@/components/configuracion/EstadosKanbanTab';
 import { CategoriasTrabajoTab } from '@/components/configuracion/CategoriasTrabajoTab';
+import { TiposDocumentoTab } from '@/components/configuracion/TiposDocumentoTab';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { ThemeSelector } from '@/components/theme/ThemeSelector';
 import { exportBackup, importBackup } from '@/lib/backup';
@@ -49,6 +47,7 @@ export default function ConfiguracionPage() {
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [tiposSubTab, setTiposSubTab] = useState('categorias');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { clientes, trabajos, items, pagos, eventos, documentos, setClientes, setTrabajos, setItems, setPagos, setEventos, setDocumentos } = useApp();
@@ -86,6 +85,15 @@ export default function ConfiguracionPage() {
     setCategorias,
   } = useCategorias();
 
+  const {
+    tiposDocumento,
+    addTipoDocumento,
+    updateTipoDocumento,
+    toggleTipoDocumentoActivo,
+    deleteTipoDocumento,
+    setTiposDocumento,
+  } = useTiposDocumento();
+
   const handleSave = () => {
     toast.success('Configuración guardada correctamente');
   };
@@ -110,7 +118,6 @@ export default function ConfiguracionPage() {
     if (!file) return;
 
     await importBackup(file, (backup) => {
-      // Restaurar datos en localStorage
       if (backup.clientes) setClientes(backup.clientes);
       if (backup.trabajos) setTrabajos(backup.trabajos);
       if (backup.items) setItems(backup.items);
@@ -122,7 +129,6 @@ export default function ConfiguracionPage() {
       if (backup.estadosKanban) setEstadosKanban(backup.estadosKanban);
     });
 
-    // Limpiar input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -159,39 +165,23 @@ export default function ConfiguracionPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="categorias" className="w-full">
+      <Tabs defaultValue="tipos" className="w-full">
         <TabsList className="flex-wrap h-auto gap-1 w-full justify-start">
-          <TabsTrigger value="categorias" className="gap-1.5">
-            <FolderOpen className="h-4 w-4" />
-            <span className="hidden sm:inline">Categorías</span>
+          <TabsTrigger value="tipos" className="gap-1.5">
+            <Layers className="h-4 w-4" />
+            <span className="hidden sm:inline">Tipos</span>
           </TabsTrigger>
-          <TabsTrigger value="tipos-cliente" className="gap-1.5">
-            <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Tipos Cliente</span>
-          </TabsTrigger>
-          <TabsTrigger value="tipos-trabajo" className="gap-1.5">
-            <Briefcase className="h-4 w-4" />
-            <span className="hidden sm:inline">Tipos Trabajo</span>
-          </TabsTrigger>
-          <TabsTrigger value="kanban" className="gap-1.5">
-            <Columns className="h-4 w-4" />
-            <span className="hidden sm:inline">Estados Kanban</span>
-          </TabsTrigger>
-          <TabsTrigger value="perfil" className="gap-1.5">
+          <TabsTrigger value="profesional" className="gap-1.5">
             <User className="h-4 w-4" />
-            <span className="hidden sm:inline">Perfil</span>
+            <span className="hidden sm:inline">Profesional</span>
           </TabsTrigger>
-          <TabsTrigger value="negocio" className="gap-1.5">
+          <TabsTrigger value="general" className="gap-1.5">
             <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Negocio</span>
+            <span className="hidden sm:inline">General</span>
           </TabsTrigger>
-          <TabsTrigger value="notificaciones" className="gap-1.5">
-            <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">Alertas</span>
-          </TabsTrigger>
-          <TabsTrigger value="respaldo" className="gap-1.5">
-            <Database className="h-4 w-4" />
-            <span className="hidden sm:inline">Respaldo</span>
+          <TabsTrigger value="sistema" className="gap-1.5">
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">Sistema</span>
           </TabsTrigger>
           <TabsTrigger value="seguridad" className="gap-1.5">
             <Shield className="h-4 w-4" />
@@ -199,55 +189,76 @@ export default function ConfiguracionPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Categorías de Trabajo */}
-        <TabsContent value="categorias" className="mt-6">
-          <CategoriasTrabajoTab
-            categorias={categorias}
-            onAdd={addCategoria}
-            onUpdate={updateCategoria}
-            onDelete={deleteCategoria}
-            onToggleActivo={toggleCategoriaActivo}
-            onReorder={reorderCategorias}
-          />
+        {/* TAB 1: TIPOS - Agrupa Categorías, Tipos Cliente, Tipos Trabajo, Estados Kanban, Tipos Documentos */}
+        <TabsContent value="tipos" className="mt-6">
+          <Card className="p-6">
+            <Tabs value={tiposSubTab} onValueChange={setTiposSubTab}>
+              <TabsList className="mb-6">
+                <TabsTrigger value="categorias">Categorías</TabsTrigger>
+                <TabsTrigger value="tipos-cliente">Tipos Cliente</TabsTrigger>
+                <TabsTrigger value="tipos-trabajo">Tipos Trabajo</TabsTrigger>
+                <TabsTrigger value="estados-kanban">Estados Kanban</TabsTrigger>
+                <TabsTrigger value="tipos-documento">Tipos Documento</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="categorias">
+                <CategoriasTrabajoTab
+                  categorias={categorias}
+                  onAdd={addCategoria}
+                  onUpdate={updateCategoria}
+                  onDelete={deleteCategoria}
+                  onToggleActivo={toggleCategoriaActivo}
+                  onReorder={reorderCategorias}
+                />
+              </TabsContent>
+
+              <TabsContent value="tipos-cliente">
+                <TiposClienteTab
+                  tiposCliente={tiposCliente}
+                  onAdd={addTipoCliente}
+                  onUpdate={updateTipoCliente}
+                  onToggleActivo={toggleTipoClienteActivo}
+                  onDelete={deleteTipoCliente}
+                />
+              </TabsContent>
+
+              <TabsContent value="tipos-trabajo">
+                <TiposTrabajoTab
+                  tiposTrabajo={tiposTrabajo}
+                  categorias={categorias}
+                  onAdd={addTipoTrabajo}
+                  onUpdate={updateTipoTrabajo}
+                  onToggleActivo={toggleTipoTrabajoActivo}
+                  onDelete={deleteTipoTrabajo}
+                  onClone={cloneTipoTrabajo}
+                />
+              </TabsContent>
+
+              <TabsContent value="estados-kanban">
+                <EstadosKanbanTab
+                  estadosKanban={estadosKanban}
+                  onAdd={addEstadoKanban}
+                  onUpdate={updateEstadoKanban}
+                  onDelete={deleteEstadoKanban}
+                  onReorder={reorderEstadosKanban}
+                />
+              </TabsContent>
+
+              <TabsContent value="tipos-documento">
+                <TiposDocumentoTab
+                  tiposDocumento={tiposDocumento}
+                  onAdd={addTipoDocumento}
+                  onUpdate={updateTipoDocumento}
+                  onToggleActivo={toggleTipoDocumentoActivo}
+                  onDelete={deleteTipoDocumento}
+                />
+              </TabsContent>
+            </Tabs>
+          </Card>
         </TabsContent>
 
-        {/* Tipos de Cliente */}
-        <TabsContent value="tipos-cliente" className="mt-6">
-          <TiposClienteTab
-            tiposCliente={tiposCliente}
-            onAdd={addTipoCliente}
-            onUpdate={updateTipoCliente}
-            onToggleActivo={toggleTipoClienteActivo}
-            onDelete={deleteTipoCliente}
-          />
-        </TabsContent>
-
-        {/* Tipos de Trabajo */}
-        <TabsContent value="tipos-trabajo" className="mt-6">
-          <TiposTrabajoTab
-            tiposTrabajo={tiposTrabajo}
-            categorias={categorias}
-            onAdd={addTipoTrabajo}
-            onUpdate={updateTipoTrabajo}
-            onToggleActivo={toggleTipoTrabajoActivo}
-            onDelete={deleteTipoTrabajo}
-            onClone={cloneTipoTrabajo}
-          />
-        </TabsContent>
-
-        {/* Estados Kanban */}
-        <TabsContent value="kanban" className="mt-6">
-          <EstadosKanbanTab
-            estadosKanban={estadosKanban}
-            onAdd={addEstadoKanban}
-            onUpdate={updateEstadoKanban}
-            onDelete={deleteEstadoKanban}
-            onReorder={reorderEstadosKanban}
-          />
-        </TabsContent>
-
-        {/* Perfil */}
-        <TabsContent value="perfil" className="mt-6">
+        {/* TAB 2: PROFESIONAL - Datos del profesional, logo y firma */}
+        <TabsContent value="profesional" className="mt-6">
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Datos del Profesional</h3>
             
@@ -341,10 +352,8 @@ export default function ConfiguracionPage() {
           </Card>
         </TabsContent>
 
-        {/* Negocio */}
-        <TabsContent value="negocio" className="mt-6 space-y-6">
-          <ThemeSelector />
-          
+        {/* TAB 3: GENERAL - Negocio, moneda, IVA, alertas */}
+        <TabsContent value="general" className="mt-6 space-y-6">
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Configuración de Negocio</h3>
             
@@ -403,18 +412,9 @@ export default function ConfiguracionPage() {
                   </div>
                 )}
               </div>
-            </div>
-          </Card>
-        </TabsContent>
 
-        {/* Notificaciones */}
-        <TabsContent value="notificaciones" className="mt-6 space-y-6">
-          <NotificationSettings />
+              <Separator />
 
-          <Card className="p-6">
-            <h3 className="font-semibold mb-4">Configuración de Alertas</h3>
-            
-            <div className="space-y-6">
               <div className="space-y-2 max-w-xs">
                 <Label htmlFor="dias-alerta">Días para alertar vencimientos</Label>
                 <Input 
@@ -427,36 +427,16 @@ export default function ConfiguracionPage() {
                   Mostrar alertas X días antes de un vencimiento
                 </p>
               </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Recordatorios de trabajos pendientes</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Mostrar trabajos próximos a vencer al iniciar
-                    </p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Alertas de deudas</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Notificar sobre clientes con deudas antiguas
-                    </p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-              </div>
             </div>
           </Card>
+
+          <NotificationSettings />
         </TabsContent>
 
-        {/* Respaldo */}
-        <TabsContent value="respaldo" className="mt-6">
+        {/* TAB 4: SISTEMA - Tema, respaldo */}
+        <TabsContent value="sistema" className="mt-6 space-y-6">
+          <ThemeSelector />
+          
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Respaldo de Datos</h3>
             
@@ -499,10 +479,10 @@ export default function ConfiguracionPage() {
           </Card>
         </TabsContent>
 
-        {/* Seguridad */}
+        {/* TAB 5: SEGURIDAD - Cambio de contraseña */}
         <TabsContent value="seguridad" className="mt-6">
           <Card className="p-6">
-            <h3 className="font-semibold mb-4">Seguridad de la Cuenta</h3>
+            <h3 className="font-semibold mb-4">Cambiar Contraseña</h3>
             
             <form onSubmit={handleChangePassword} className="space-y-6 max-w-md">
               <div className="space-y-2">
