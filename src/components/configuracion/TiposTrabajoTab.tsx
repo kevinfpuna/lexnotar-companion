@@ -220,6 +220,7 @@ export function TiposTrabajoTab({
         open={formOpen}
         onOpenChange={setFormOpen}
         tipoTrabajo={editingTipo}
+        categorias={categorias}
         onSubmit={handleSubmit}
       />
 
