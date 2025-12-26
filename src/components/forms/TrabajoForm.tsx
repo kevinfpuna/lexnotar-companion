@@ -83,7 +83,7 @@ export function TrabajoForm({
         nombreItem: paso.nombre,
         descripcionItem: paso.descripcion,
         diasEstimados: paso.diasEstimados,
-        costoTotal: 0,
+        costoTotal: paso.costoEstimado || 0,
       }));
       setCustomItems(items);
     }

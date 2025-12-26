@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import { formatCurrency } from '@/lib/mockData';
 import { EstadoItem } from '@/types';
 import { cn } from '@/lib/utils';
-import { Clock, User, Briefcase, ExternalLink } from 'lucide-react';
+import { Clock, User, Briefcase, ExternalLink, X, Filter, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
+import { DateRange } from 'react-day-picker';
 
 const columns: { id: EstadoItem; title: string; color: string }[] = [
   { id: 'Pendiente', title: 'Pendiente', color: 'bg-warning/10 border-warning/20' },
@@ -37,13 +40,52 @@ export default function KanbanBoard() {
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<EstadoItem | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [clienteFilter, setClienteFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Get trabajo by id helper
   const getTrabajoById = (id: string) => trabajos.find(t => t.id === id);
   const getClienteById = (id: string) => clientes.find(c => c.id === id);
 
+  // Filter items
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      // Date range filter
+      if (dateRange?.from && dateRange?.to) {
+        const itemDate = item.fechaInicio || item.fechaCreacion;
+        if (itemDate < dateRange.from || itemDate > dateRange.to) {
+          return false;
+        }
+      }
+
+      // Cliente filter
+      if (clienteFilter && clienteFilter !== 'all') {
+        const trabajo = getTrabajoById(item.trabajoId);
+        if (trabajo?.clienteId !== clienteFilter) {
+          return false;
+        }
+      }
+
+      // Search filter
+      if (searchQuery) {
+        const trabajo = getTrabajoById(item.trabajoId);
+        const cliente = trabajo ? getClienteById(trabajo.clienteId) : null;
+        const searchLower = searchQuery.toLowerCase();
+        
+        return (
+          item.nombreItem.toLowerCase().includes(searchLower) ||
+          trabajo?.nombreTrabajo.toLowerCase().includes(searchLower) ||
+          cliente?.nombreCompleto.toLowerCase().includes(searchLower)
+        );
+      }
+
+      return true;
+    });
+  }, [items, dateRange, clienteFilter, searchQuery, trabajos, clientes]);
+
   const getItemsByStatus = (status: EstadoItem) => {
-    return items.filter(item => item.estado === status);
+    return filteredItems.filter(item => item.estado === status);
   };
 
   const handleDragStart = (e: React.DragEvent, itemId: string) => {
@@ -65,7 +107,6 @@ export default function KanbanBoard() {
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Only clear if leaving the column entirely
     const relatedTarget = e.relatedTarget as HTMLElement;
     if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
       setDragOverColumn(null);
@@ -88,6 +129,14 @@ export default function KanbanBoard() {
     await updateItemEstado(itemId, newStatus);
   };
 
+  const clearFilters = () => {
+    setDateRange(undefined);
+    setClienteFilter('all');
+    setSearchQuery('');
+  };
+
+  const hasActiveFilters = dateRange || (clienteFilter && clienteFilter !== 'all') || searchQuery;
+
   const selectedItem = selectedItemId ? items.find(i => i.id === selectedItemId) : null;
   const selectedTrabajo = selectedItem ? getTrabajoById(selectedItem.trabajoId) : null;
   const selectedCliente = selectedTrabajo ? getClienteById(selectedTrabajo.clienteId) : null;
@@ -96,10 +145,54 @@ export default function KanbanBoard() {
     <div className="flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-10rem)]">
       {/* Header */}
       <div className="flex-shrink-0 pb-3 md:pb-4">
-        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Kanban de Pasos</h1>
-        <p className="text-muted-foreground text-sm md:text-base mt-1">
-          Arrastra y suelta para cambiar el estado
-        </p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Kanban de Pasos</h1>
+            <p className="text-muted-foreground text-sm md:text-base mt-1">
+              Arrastra y suelta para cambiar el estado
+            </p>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 w-40 md:w-48"
+              />
+            </div>
+
+            <DatePickerWithRange
+              value={dateRange}
+              onChange={setDateRange}
+              className="w-auto"
+            />
+
+            <Select value={clienteFilter} onValueChange={setClienteFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los clientes</SelectItem>
+                {clientes.filter(c => c.estado === 'activo').map(cliente => (
+                  <SelectItem key={cliente.id} value={cliente.id}>
+                    {cliente.nombreCompleto}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-1" />
+                Limpiar
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Kanban board - scrollable container */}
