@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -42,6 +42,19 @@ type Periodo = 'hoy' | 'semana' | 'mes' | 'año' | 'custom';
 export default function ReportesPage() {
   const [periodo, setPeriodo] = useState<Periodo>('mes');
   const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
+
+  // Inicializar customRange cuando se selecciona 'custom'
+  useEffect(() => {
+    if (periodo === 'custom' && !customRange) {
+      const defaultFrom = new Date();
+      defaultFrom.setMonth(defaultFrom.getMonth() - 1);
+      defaultFrom.setHours(0, 0, 0, 0);
+      setCustomRange({
+        from: defaultFrom,
+        to: new Date()
+      });
+    }
+  }, [periodo, customRange]);
 
   const getDateRange = (): { from: Date; to: Date } => {
     const today = new Date();
