@@ -126,9 +126,6 @@ export default function PagosPage() {
         
         setTimeout(() => {
           recalculateTrabajo(trabajoId);
-          if (trabajo) {
-            recalculateClientDebt(trabajo.clienteId);
-          }
         }, 100);
       });
       setDeletePagoId(null);

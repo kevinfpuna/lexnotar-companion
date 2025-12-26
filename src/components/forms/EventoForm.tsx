@@ -53,7 +53,7 @@ interface EventoFormProps {
   trabajos: Trabajo[];
   onSubmit: (data: EventoFormData) => Promise<void>;
   isLoading?: boolean;
-  defaultValues?: EventoCalendario | null;
+  defaultValues?: Partial<EventoFormData> | null;
   mode?: 'create' | 'edit';
 }
 
