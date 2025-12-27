@@ -21,11 +21,13 @@ import { VencimientosWidget } from '@/components/dashboard/VencimientosWidget';
 import { IngresosChart } from '@/components/dashboard/IngresosChart';
 import { TrabajosPorEstadoChart } from '@/components/dashboard/TrabajosPorEstadoChart';
 import { DeudasClienteChart } from '@/components/dashboard/DeudasClienteChart';
+import { PeriodFilter, PeriodOption } from '@/components/dashboard/PeriodFilter';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { clientes, trabajos, eventos, tiposTrabajo, items, pagos, createTrabajo, isLoading } = useApp();
   const [trabajoFormOpen, setTrabajoFormOpen] = useState(false);
+  const [chartPeriod, setChartPeriod] = useState<PeriodOption>('6m');
 
   // Get tipo trabajo by id helper
   const getTipoTrabajoById = (id: string) => tiposTrabajo.find(t => t.id === id);
@@ -134,15 +136,21 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Period Filter */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Análisis</h2>
+        <PeriodFilter value={chartPeriod} onChange={setChartPeriod} />
+      </div>
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <IngresosChart pagos={pagos} />
+          <IngresosChart pagos={pagos} period={chartPeriod} />
         </div>
-        <TrabajosPorEstadoChart trabajos={trabajos} />
+        <TrabajosPorEstadoChart trabajos={trabajos} period={chartPeriod} />
       </div>
 
-      {/* Second Charts Row */}
+      {/* Second Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <DeudasClienteChart clientes={clientes} />
         
@@ -168,7 +176,7 @@ export default function Dashboard() {
             </Button>
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-2">
             {proximosEventos.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 No hay eventos próximos
@@ -213,7 +221,7 @@ export default function Dashboard() {
             </Button>
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-2">
             {trabajosRecientes.map((trabajo) => {
               const cliente = getClienteById(trabajo.clienteId);
               const tipoTrabajo = getTipoTrabajoById(trabajo.tipoTrabajoId);
@@ -260,7 +268,7 @@ export default function Dashboard() {
             {clientes
               .filter(c => c.deudaTotalActual > 0)
               .sort((a, b) => b.deudaTotalActual - a.deudaTotalActual)
-              .slice(0, 6)
+              .slice(0, 5)
               .map((cliente) => (
                 <Link
                   key={cliente.id}

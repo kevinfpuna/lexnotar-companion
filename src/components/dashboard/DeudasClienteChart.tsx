@@ -16,11 +16,11 @@ export function DeudasClienteChart({ clientes }: DeudasClienteChartProps) {
     return clientes
       .filter(c => c.deudaTotalActual > 0)
       .sort((a, b) => b.deudaTotalActual - a.deudaTotalActual)
-      .slice(0, 8)
+      .slice(0, 7)
       .map(c => ({
         id: c.id,
-        nombre: c.nombreCompleto.length > 15 
-          ? c.nombreCompleto.substring(0, 15) + '...' 
+        nombre: c.nombreCompleto.length > 12 
+          ? c.nombreCompleto.substring(0, 12) + '...' 
           : c.nombreCompleto,
         nombreCompleto: c.nombreCompleto,
         deuda: c.deudaTotalActual,
@@ -52,7 +52,7 @@ export function DeudasClienteChart({ clientes }: DeudasClienteChartProps) {
 
   return (
     <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-destructive/10 rounded-full">
             <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -65,30 +65,30 @@ export function DeudasClienteChart({ clientes }: DeudasClienteChartProps) {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-destructive">
+          <p className="text-xl font-bold text-destructive">
             ₲ {formatCurrency(totalDeuda)}
           </p>
-          <p className="text-xs text-muted-foreground">Deuda total</p>
+          <p className="text-xs text-muted-foreground">Total</p>
         </div>
       </div>
 
       {data.length === 0 ? (
-        <div className="h-[250px] flex items-center justify-center">
+        <div className="h-[200px] flex items-center justify-center">
           <p className="text-muted-foreground">No hay clientes con deuda</p>
         </div>
       ) : (
-        <div className="h-[250px]">
+        <div className="h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart 
               data={data} 
               layout="vertical"
-              margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+              margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
               <XAxis 
                 type="number"
                 className="text-xs"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={formatCurrency}
@@ -97,10 +97,10 @@ export function DeudasClienteChart({ clientes }: DeudasClienteChartProps) {
                 type="category"
                 dataKey="nombre"
                 className="text-xs"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                width={100}
+                width={85}
               />
               <Tooltip
                 contentStyle={{
@@ -126,22 +126,6 @@ export function DeudasClienteChart({ clientes }: DeudasClienteChartProps) {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* Quick summary */}
-      {data.length > 0 && (
-        <div className="mt-4 pt-4 border-t">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Mayor deudor:</span>
-            <span className="font-medium">{data[0]?.nombreCompleto}</span>
-          </div>
-          <div className="flex justify-between text-sm mt-1">
-            <span className="text-muted-foreground">Su deuda:</span>
-            <span className="font-medium text-destructive">
-              ₲ {data[0]?.deuda.toLocaleString()}
-            </span>
-          </div>
         </div>
       )}
     </Card>
