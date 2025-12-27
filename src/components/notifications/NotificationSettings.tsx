@@ -1,4 +1,4 @@
-import { Bell, BellOff, BellRing, Check, AlertTriangle, Clock } from 'lucide-react';
+import { Bell, BellOff, BellRing, Check, AlertTriangle, Clock, Calendar, FileWarning } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -18,7 +18,15 @@ import { toast } from 'sonner';
 
 export function NotificationSettings() {
   const { permission, isSupported, requestPermission, showNotification } = usePushNotifications();
-  const { config, setHorasAnticipacion, setSoundEnabled } = useRecordatoriosConfig();
+  const { 
+    config, 
+    setHorasAnticipacion, 
+    setSoundEnabled,
+    setPushEventosEnabled,
+    setPushVencimientosEnabled,
+    setToastEventosEnabled,
+    setToastVencimientosEnabled,
+  } = useRecordatoriosConfig();
 
   const handleRequestPermission = async () => {
     const granted = await requestPermission();
@@ -31,7 +39,7 @@ export function NotificationSettings() {
 
   const handleTestNotification = () => {
     showNotification('Prueba de notificación', {
-      body: 'Las notificaciones están funcionando correctamente',
+      body: 'Las notificaciones push están funcionando correctamente',
       tag: 'test-notification',
     });
     toast.success('Notificación de prueba enviada');
@@ -84,7 +92,7 @@ export function NotificationSettings() {
         <div>
           <h3 className="font-semibold">Notificaciones y Recordatorios</h3>
           <p className="text-sm text-muted-foreground">
-            Configura alertas y recordatorios de eventos
+            Configura alertas y recordatorios de eventos y vencimientos
           </p>
         </div>
         {getPermissionBadge()}
@@ -95,7 +103,7 @@ export function NotificationSettings() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <Label className="font-medium">Tiempo de anticipación</Label>
+            <Label className="font-medium">Tiempo de anticipación por defecto</Label>
           </div>
           <div className="flex items-center gap-4">
             <Select 
@@ -126,7 +134,7 @@ export function NotificationSettings() {
 
         {/* Notificaciones push */}
         <div className="space-y-3">
-          <Label className="font-medium">Notificaciones Push</Label>
+          <Label className="font-medium">Notificaciones Push del Navegador</Label>
           
           {!isSupported && (
             <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
@@ -148,9 +156,9 @@ export function NotificationSettings() {
           {permission === 'default' && isSupported && (
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <div>
-                <p className="text-sm font-medium">Activar notificaciones</p>
+                <p className="text-sm font-medium">Activar notificaciones push</p>
                 <p className="text-xs text-muted-foreground">
-                  Recibirás alertas cuando tengas eventos próximos
+                  Recibirás alertas del navegador incluso cuando no estés en la app
                 </p>
               </div>
               <Button onClick={handleRequestPermission}>
@@ -162,6 +170,44 @@ export function NotificationSettings() {
 
           {permission === 'granted' && (
             <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="push-eventos" className="cursor-pointer">
+                      Eventos del calendario
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Recibe alertas de eventos próximos
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="push-eventos"
+                  checked={config.pushEventosEnabled}
+                  onCheckedChange={setPushEventosEnabled}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileWarning className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="push-vencimientos" className="cursor-pointer">
+                      Vencimientos de trabajos
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Recibe alertas de trabajos próximos a vencer
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="push-vencimientos"
+                  checked={config.pushVencimientosEnabled}
+                  onCheckedChange={setPushVencimientosEnabled}
+                />
+              </div>
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Label htmlFor="sound-notifications" className="cursor-pointer">
@@ -183,6 +229,54 @@ export function NotificationSettings() {
               </div>
             </div>
           )}
+        </div>
+
+        <Separator />
+
+        {/* Toast notifications en la app */}
+        <div className="space-y-3">
+          <Label className="font-medium">Notificaciones en la aplicación</Label>
+          <p className="text-sm text-muted-foreground">
+            Alertas que aparecen dentro de la aplicación
+          </p>
+
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-3">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <Label htmlFor="toast-eventos" className="cursor-pointer">
+                  Recordatorios de eventos
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Mostrar alertas de eventos próximos
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="toast-eventos"
+              checked={config.toastEventosEnabled}
+              onCheckedChange={setToastEventosEnabled}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-3">
+              <FileWarning className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <Label htmlFor="toast-vencimientos" className="cursor-pointer">
+                  Alertas de vencimientos
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Mostrar alertas de trabajos vencidos o próximos a vencer
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="toast-vencimientos"
+              checked={config.toastVencimientosEnabled}
+              onCheckedChange={setToastVencimientosEnabled}
+            />
+          </div>
         </div>
       </div>
     </Card>
