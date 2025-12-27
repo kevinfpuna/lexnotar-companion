@@ -5,11 +5,19 @@ const STORAGE_KEY = 'recordatorios-config';
 export interface RecordatoriosConfig {
   horasAnticipacionDefault: number;
   soundEnabled: boolean;
+  pushEventosEnabled: boolean;
+  pushVencimientosEnabled: boolean;
+  toastEventosEnabled: boolean;
+  toastVencimientosEnabled: boolean;
 }
 
 const defaultConfig: RecordatoriosConfig = {
   horasAnticipacionDefault: 24,
   soundEnabled: true,
+  pushEventosEnabled: true,
+  pushVencimientosEnabled: true,
+  toastEventosEnabled: true,
+  toastVencimientosEnabled: true,
 };
 
 export function useRecordatoriosConfig() {
@@ -49,10 +57,30 @@ export function useRecordatoriosConfig() {
     saveConfig({ soundEnabled: enabled });
   }, [saveConfig]);
 
+  const setPushEventosEnabled = useCallback((enabled: boolean) => {
+    saveConfig({ pushEventosEnabled: enabled });
+  }, [saveConfig]);
+
+  const setPushVencimientosEnabled = useCallback((enabled: boolean) => {
+    saveConfig({ pushVencimientosEnabled: enabled });
+  }, [saveConfig]);
+
+  const setToastEventosEnabled = useCallback((enabled: boolean) => {
+    saveConfig({ toastEventosEnabled: enabled });
+  }, [saveConfig]);
+
+  const setToastVencimientosEnabled = useCallback((enabled: boolean) => {
+    saveConfig({ toastVencimientosEnabled: enabled });
+  }, [saveConfig]);
+
   return {
     config,
     setHorasAnticipacion,
     setSoundEnabled,
+    setPushEventosEnabled,
+    setPushVencimientosEnabled,
+    setToastEventosEnabled,
+    setToastVencimientosEnabled,
     saveConfig,
   };
 }
