@@ -17,10 +17,11 @@ import { useApp } from '@/contexts/AppContext';
 import { formatCurrency, formatCurrencyCompact, formatDate } from '@/lib/mockData';
 import { TrabajoForm } from '@/components/forms/TrabajoForm';
 import { NotificationPermissionBanner } from '@/components/notifications/NotificationPermissionBanner';
+import { VencimientosWidget } from '@/components/dashboard/VencimientosWidget';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { clientes, trabajos, eventos, tiposTrabajo, createTrabajo, isLoading } = useApp();
+  const { clientes, trabajos, eventos, tiposTrabajo, items, createTrabajo, isLoading } = useApp();
   const [trabajoFormOpen, setTrabajoFormOpen] = useState(false);
 
   // Get tipo trabajo by id helper
@@ -221,6 +222,9 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Vencimientos Widget */}
+      <VencimientosWidget trabajos={trabajos} items={items} />
 
       {/* Clients with debt */}
       <div className="card-elevated p-6">

@@ -6,7 +6,8 @@ import {
   Filter,
   Clock,
   Calendar,
-  ArrowUpRight
+  ArrowUpRight,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,12 +18,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Progress } from '@/components/ui/progress';
 import { useApp } from '@/contexts/AppContext';
 import { TrabajoForm } from '@/components/forms/TrabajoForm';
 import { formatCurrency, formatDate } from '@/lib/mockData';
 import { EstadoTrabajo } from '@/types';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
 
 const estadoOptions: EstadoTrabajo[] = ['Borrador', 'Pendiente', 'En proceso', 'Completado', 'Cancelado'];
 
@@ -42,6 +53,7 @@ export default function TrabajosList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [tipoFilter, setTipoFilter] = useState<string>('all');
   const [estadoFilter, setEstadoFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [trabajoFormOpen, setTrabajoFormOpen] = useState(false);
 
   const filteredTrabajos = useMemo(() => {
@@ -56,10 +68,24 @@ export default function TrabajosList() {
 
       const matchesTipo = tipoFilter === 'all' || trabajo.tipoTrabajoId === tipoFilter;
       const matchesEstado = estadoFilter === 'all' || trabajo.estado === estadoFilter;
+      
+      // Filtro de rango de fechas
+      let matchesDateRange = true;
+      if (dateRange?.from) {
+        const trabajoDate = new Date(trabajo.fechaInicio);
+        if (dateRange.to) {
+          matchesDateRange = isWithinInterval(trabajoDate, {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.to)
+          });
+        } else {
+          matchesDateRange = trabajoDate >= startOfDay(dateRange.from);
+        }
+      }
 
-      return matchesSearch && matchesTipo && matchesEstado;
+      return matchesSearch && matchesTipo && matchesEstado && matchesDateRange;
     });
-  }, [trabajos, searchQuery, tipoFilter, estadoFilter, getClienteById]);
+  }, [trabajos, searchQuery, tipoFilter, estadoFilter, dateRange, getClienteById]);
 
   const calculateProgress = (trabajoId: string): number => {
     const items = getItemsByTrabajoId(trabajoId);
@@ -101,7 +127,7 @@ export default function TrabajosList() {
             className="pl-9"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Select value={tipoFilter} onValueChange={setTipoFilter}>
             <SelectTrigger className="w-[200px]">
               <Filter className="h-4 w-4 mr-2" />
@@ -129,8 +155,75 @@ export default function TrabajosList() {
               ))}
             </SelectContent>
           </Select>
+          
+          {/* Filtro de rango de fechas */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
+                <Calendar className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "dd/MM/yy", { locale: es })} -{" "}
+                      {format(dateRange.to, "dd/MM/yy", { locale: es })}
+                    </>
+                  ) : (
+                    format(dateRange.from, "dd/MM/yyyy", { locale: es })
+                  )
+                ) : (
+                  <span>Rango de fechas</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                locale={es}
+              />
+            </PopoverContent>
+          </Popover>
+          
+          {dateRange && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDateRange(undefined)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Filtros activos */}
+      {(tipoFilter !== 'all' || estadoFilter !== 'all' || dateRange) && (
+        <div className="flex gap-2 flex-wrap">
+          {tipoFilter !== 'all' && (
+            <Badge variant="secondary" className="gap-1">
+              Tipo: {tiposTrabajo.find(t => t.id === tipoFilter)?.nombre}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setTipoFilter('all')} />
+            </Badge>
+          )}
+          {estadoFilter !== 'all' && (
+            <Badge variant="secondary" className="gap-1">
+              Estado: {estadoFilter}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setEstadoFilter('all')} />
+            </Badge>
+          )}
+          {dateRange && (
+            <Badge variant="secondary" className="gap-1">
+              Fechas: {dateRange.from && format(dateRange.from, "dd/MM/yy")}
+              {dateRange.to && ` - ${format(dateRange.to, "dd/MM/yy")}`}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setDateRange(undefined)} />
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Works list */}
       <div className="space-y-3">

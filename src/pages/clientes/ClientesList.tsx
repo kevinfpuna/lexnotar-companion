@@ -55,6 +55,7 @@ export default function ClientesList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [tipoFilter, setTipoFilter] = useState<string>('all');
   const [estadoFilter, setEstadoFilter] = useState<string>('all');
+  const [deudaFilter, setDeudaFilter] = useState<string>('all');
   
   const [clienteFormOpen, setClienteFormOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
@@ -71,10 +72,18 @@ export default function ClientesList() {
 
       const matchesTipo = tipoFilter === 'all' || cliente.tipoClienteId === tipoFilter;
       const matchesEstado = estadoFilter === 'all' || cliente.estado === estadoFilter;
+      
+      // Filtro de deuda
+      let matchesDeuda = true;
+      if (deudaFilter === 'con-deuda') {
+        matchesDeuda = cliente.deudaTotalActual > 0;
+      } else if (deudaFilter === 'sin-deuda') {
+        matchesDeuda = cliente.deudaTotalActual === 0;
+      }
 
-      return matchesSearch && matchesTipo && matchesEstado;
+      return matchesSearch && matchesTipo && matchesEstado && matchesDeuda;
     });
-  }, [clientes, searchQuery, tipoFilter, estadoFilter]);
+  }, [clientes, searchQuery, tipoFilter, estadoFilter, deudaFilter]);
 
   const handleOpenEdit = (cliente: Cliente, e: React.MouseEvent) => {
     e.preventDefault();
@@ -163,6 +172,16 @@ export default function ClientesList() {
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="activo">Activos</SelectItem>
               <SelectItem value="inactivo">Inactivos</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={deudaFilter} onValueChange={setDeudaFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Deuda" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="con-deuda">Con deuda</SelectItem>
+              <SelectItem value="sin-deuda">Sin deuda</SelectItem>
             </SelectContent>
           </Select>
         </div>
