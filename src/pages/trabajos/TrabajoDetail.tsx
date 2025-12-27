@@ -49,6 +49,7 @@ import { toast } from 'sonner';
 import { generateTrabajoPDF } from '@/lib/pdfGenerator';
 import { TrabajoTimeline } from '@/components/trabajo/TrabajoTimeline';
 import { NotasEditor } from '@/components/shared/NotasEditor';
+import { PresupuestoVersiones } from '@/components/trabajo/PresupuestoVersiones';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -362,9 +363,10 @@ export default function TrabajoDetail() {
 
       {/* Tabs */}
       <Tabs defaultValue="items" className="w-full">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="items">Pasos ({trabajoItems.length})</TabsTrigger>
           <TabsTrigger value="pagos">Pagos ({trabajoPagos.length})</TabsTrigger>
+          <TabsTrigger value="presupuestos">Presupuestos</TabsTrigger>
           <TabsTrigger value="historial">
             <History className="h-4 w-4 mr-2" />
             Historial
@@ -523,6 +525,13 @@ export default function TrabajoDetail() {
                 )}
               </TableBody>
             </Table>
+          </div>
+        </TabsContent>
+
+        {/* Presupuestos tab */}
+        <TabsContent value="presupuestos" className="mt-4">
+          <div className="card-elevated p-6">
+            <PresupuestoVersiones trabajo={trabajo} items={trabajoItems} />
           </div>
         </TabsContent>
 
