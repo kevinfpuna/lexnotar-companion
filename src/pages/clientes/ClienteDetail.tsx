@@ -10,7 +10,8 @@ import {
   Receipt,
   FileText,
   Plus,
-  Upload
+  Upload,
+  StickyNote
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,7 @@ import { DocumentoCard } from '@/components/documentos/DocumentoCard';
 import { DocumentoUpload } from '@/components/documentos/DocumentoUpload';
 import { DocumentoViewer } from '@/components/documentos/DocumentoViewer';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
+import { NotasEditor } from '@/components/shared/NotasEditor';
 import { formatCurrency, formatDate } from '@/lib/mockData';
 
 
@@ -208,6 +210,10 @@ export default function ClienteDetail() {
             <FileText className="h-4 w-4 mr-2" />
             Documentos
           </TabsTrigger>
+          <TabsTrigger value="notas">
+            <StickyNote className="h-4 w-4 mr-2" />
+            Notas
+          </TabsTrigger>
         </TabsList>
 
         {/* Trabajos */}
@@ -348,15 +354,17 @@ export default function ClienteDetail() {
             )}
           </div>
         </TabsContent>
-      </Tabs>
 
-      {/* Notes */}
-      {cliente.notasInternas && (
-        <div className="card-elevated p-6">
-          <h3 className="font-semibold mb-2">Notas internas</h3>
-          <p className="text-muted-foreground">{cliente.notasInternas}</p>
-        </div>
-      )}
+        {/* Notas tab */}
+        <TabsContent value="notas" className="mt-4">
+          <NotasEditor
+            notas={cliente.notasInternas || ''}
+            onSave={async (notas) => {
+              await updateCliente(cliente.id, { notasInternas: notas });
+            }}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Cliente Form Dialog */}
       <ClienteForm

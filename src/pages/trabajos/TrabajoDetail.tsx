@@ -48,6 +48,7 @@ import { applyPagoToItem, distributeGeneralPago, calculateClienteDeuda } from '@
 import { toast } from 'sonner';
 import { generateTrabajoPDF } from '@/lib/pdfGenerator';
 import { TrabajoTimeline } from '@/components/trabajo/TrabajoTimeline';
+import { NotasEditor } from '@/components/shared/NotasEditor';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -79,6 +80,7 @@ export default function TrabajoDetail() {
     trabajos,
     updateTrabajoEstado,
     updateItemEstado,
+    updateTrabajo,
     addItem,
     updateItem,
     deleteItem,
@@ -581,15 +583,12 @@ export default function TrabajoDetail() {
 
         {/* Notas tab */}
         <TabsContent value="notas" className="mt-4">
-          <div className="card-elevated p-6">
-            <h3 className="font-semibold mb-4">Notas internas</h3>
-            <Textarea 
-              value={trabajo.notasInternas || ''} 
-              placeholder="Sin notas"
-              className="min-h-[150px]"
-              readOnly
-            />
-          </div>
+          <NotasEditor
+            notas={trabajo.notasInternas || ''}
+            onSave={async (notas) => {
+              await updateTrabajo(trabajo.id, { notasInternas: notas });
+            }}
+          />
         </TabsContent>
       </Tabs>
 
