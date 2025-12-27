@@ -31,6 +31,7 @@ import { MonthView } from '@/components/calendario/MonthView';
 import { WeekView } from '@/components/calendario/WeekView';
 import { DayView } from '@/components/calendario/DayView';
 import { toast } from 'sonner';
+import { exportToICS } from '@/lib/calendar';
 
 type ViewType = 'mes' | 'semana' | 'dia';
 
@@ -152,22 +153,8 @@ export default function CalendarioPage() {
   };
 
   // Export to ICS
-  const exportToICS = () => {
-    let icsContent = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//LexNotar//ES\n';
-    
-    eventos.forEach(evento => {
-      const dtStart = format(evento.fechaEvento, "yyyyMMdd'T'HHmmss");
-      icsContent += `BEGIN:VEVENT\nUID:${evento.id}@lexnotar\nDTSTART:${dtStart}\nSUMMARY:${evento.tituloEvento}\nDESCRIPTION:${evento.descripcion || ''}\nEND:VEVENT\n`;
-    });
-    
-    icsContent += 'END:VCALENDAR';
-    
-    const blob = new Blob([icsContent], { type: 'text/calendar' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'calendario-lexnotar.ics';
-    link.click();
-    URL.revokeObjectURL(link.href);
+  const handleExportICS = () => {
+    exportToICS(eventos, currentDate);
     toast.success('Calendario exportado');
   };
 
@@ -184,7 +171,7 @@ export default function CalendarioPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={exportToICS}>
+          <Button variant="outline" onClick={handleExportICS}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
           </Button>
