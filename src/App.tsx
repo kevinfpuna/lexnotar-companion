@@ -19,6 +19,7 @@ import PagosPage from "@/pages/pagos/PagosPage";
 import DocumentosPage from "@/pages/documentos/DocumentosPage";
 import ReportesPage from "@/pages/reportes/ReportesPage";
 import ConfiguracionPage from "@/pages/configuracion/ConfiguracionPage";
+import NotificacionesPage from "@/pages/notificaciones/NotificacionesPage";
 import LoginPage from "@/pages/auth/LoginPage";
 import NotFound from "@/pages/NotFound";
 
@@ -58,6 +59,7 @@ function ProtectedRoutes() {
           <Route path="/documentos" element={<DocumentosPage />} />
           <Route path="/reportes" element={<ReportesPage />} />
           <Route path="/configuracion" element={<ConfiguracionPage />} />
+          <Route path="/notificaciones" element={<NotificacionesPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

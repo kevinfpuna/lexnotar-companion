@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, User, Menu, LogOut } from 'lucide-react';
+import { Search, Bell, User, Menu, LogOut, Check, CheckCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,12 +11,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { profesionalMock, formatDate } from '@/lib/mockData';
+import { profesionalMock } from '@/lib/mockData';
 import { Badge } from '@/components/ui/badge';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
-import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { useNotificaciones } from '@/hooks/useNotificaciones';
+import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -25,8 +26,8 @@ interface HeaderProps {
 export function Header({ onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
-  const { eventos, trabajos, items, clientes } = useApp();
   const { usuario, logout } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificaciones();
   
   // Keyboard shortcut Cmd/Ctrl+K
   useEffect(() => {
@@ -40,64 +41,17 @@ export function Header({ onMenuClick }: HeaderProps) {
     return () => document.removeEventListener('keydown', down);
   }, []);
 
-  // Calculate dynamic notifications
-  const today = new Date();
-  const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const threeDaysAgo = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000);
-
-  const notifications = [
-    // Upcoming events (7 days)
-    ...eventos
-      .filter(e => e.fechaEvento >= today && e.fechaEvento <= nextWeek)
-      .map(e => ({ 
-        id: e.id, 
-        type: 'evento' as const, 
-        title: e.tituloEvento, 
-        subtitle: `${formatDate(e.fechaEvento)} • ${e.tipoEvento}`,
-        link: '/calendario'
-      })),
-    
-    // Jobs with upcoming deadline
-    ...trabajos
-      .filter(t => t.fechaFinEstimada <= nextWeek && t.estado !== 'Completado' && t.estado !== 'Cancelado')
-      .map(t => ({ 
-        id: t.id, 
-        type: 'vencimiento' as const, 
-        title: `Vence: ${t.nombreTrabajo}`, 
-        subtitle: formatDate(t.fechaFinEstimada),
-        link: `/trabajos/${t.id}`
-      })),
-    
-    // Items in "Listo retirar" > 3 days
-    ...items
-      .filter(i => i.estado === 'Listo retirar' && i.fechaActualizacion <= threeDaysAgo)
-      .map(i => {
-        const trabajo = trabajos.find(t => t.id === i.trabajoId);
-        return { 
-          id: i.id, 
-          type: 'item-listo' as const, 
-          title: `Listo para retirar: ${i.nombreItem}`, 
-          subtitle: trabajo?.nombreTrabajo || '',
-          link: `/trabajos/${i.trabajoId}`
-        };
-      }),
-    
-    // Clients with debt
-    ...clientes
-      .filter(c => c.deudaTotalActual > 50000000) // > 50M PYG
-      .slice(0, 3)
-      .map(c => ({ 
-        id: c.id, 
-        type: 'deuda' as const, 
-        title: `Deuda alta: ${c.nombreCompleto}`, 
-        subtitle: `Gs. ${c.deudaTotalActual.toLocaleString()}`,
-        link: `/clientes/${c.id}`
-      })),
-  ].slice(0, 10);
+  const handleNotificationClick = (notificationId: string, link: string) => {
+    markAsRead(notificationId);
+    navigate(link);
+  };
 
   const handleLogout = () => {
     logout();
   };
+
+  // Show only first 5 in dropdown
+  const displayNotifications = notifications.slice(0, 5);
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-card border-b border-border px-4 flex items-center justify-between gap-4">
@@ -135,12 +89,12 @@ export function Header({ onMenuClick }: HeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              {notifications.length > 0 && (
+              {unreadCount > 0 && (
                 <Badge 
                   variant="destructive" 
                   className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
                 >
-                  {notifications.length}
+                  {unreadCount > 9 ? '9+' : unreadCount}
                 </Badge>
               )}
             </Button>
@@ -148,28 +102,81 @@ export function Header({ onMenuClick }: HeaderProps) {
           <DropdownMenuContent align="end" className="w-80">
             <DropdownMenuLabel className="flex items-center justify-between">
               <span>Notificaciones</span>
-              <span className="text-xs text-muted-foreground font-normal">
-                {notifications.length} pendientes
-              </span>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markAllAsRead();
+                    }}
+                  >
+                    <CheckCheck className="h-3 w-3 mr-1" />
+                    Leer todas
+                  </Button>
+                )}
+                <span className="text-xs text-muted-foreground font-normal">
+                  {unreadCount} sin leer
+                </span>
+              </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {notifications.length === 0 ? (
+            {displayNotifications.length === 0 ? (
               <div className="p-4 text-sm text-muted-foreground text-center">
                 No hay notificaciones
               </div>
             ) : (
-              notifications.map((notif) => (
+              <>
+                {displayNotifications.map((notif) => (
+                  <DropdownMenuItem 
+                    key={notif.id} 
+                    className={cn(
+                      "flex items-start gap-3 p-3 cursor-pointer",
+                      !notif.readAt && "bg-muted/30"
+                    )}
+                    onClick={() => handleNotificationClick(notif.id, notif.link)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "font-medium text-sm truncate",
+                          !notif.readAt && "font-semibold"
+                        )}>
+                          {notif.title}
+                        </span>
+                        {!notif.readAt && (
+                          <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {notif.subtitle}
+                      </span>
+                    </div>
+                    {!notif.readAt && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markAsRead(notif.id);
+                        }}
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  key={`${notif.type}-${notif.id}`} 
-                  className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                  onClick={() => navigate(notif.link)}
+                  className="justify-center text-primary font-medium"
+                  onClick={() => navigate('/notificaciones')}
                 >
-                  <span className="font-medium text-sm">{notif.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {notif.subtitle}
-                  </span>
+                  Ver todas las notificaciones
                 </DropdownMenuItem>
-              ))
+              </>
             )}
           </DropdownMenuContent>
         </DropdownMenu>

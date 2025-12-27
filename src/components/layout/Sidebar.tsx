@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Scale,
   Wallet,
-  Kanban
+  Kanban,
+  Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Calendario', href: '/calendario', icon: Calendar },
   { name: 'Pagos', href: '/pagos', icon: Wallet },
   { name: 'Documentos', href: '/documentos', icon: FileText },
+  { name: 'Notificaciones', href: '/notificaciones', icon: Bell },
   { name: 'Reportes', href: '/reportes', icon: BarChart3 },
   { name: 'Configuración', href: '/configuracion', icon: Settings },
 ];
