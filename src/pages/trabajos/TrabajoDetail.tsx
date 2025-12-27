@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft,
   Calendar,
@@ -70,6 +70,7 @@ const estadoTrabajoOptions: EstadoTrabajo[] = ['Borrador', 'Pendiente', 'En proc
 
 export default function TrabajoDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { 
     getTrabajoById, 
     getItemsByTrabajoId,
@@ -94,6 +95,7 @@ export default function TrabajoDetail() {
     getDocumentosByTrabajo,
     createDocumento,
     deleteDocumento,
+    deleteTrabajo,
     isLoading
   } = useApp();
   
@@ -229,6 +231,20 @@ export default function TrabajoDetail() {
     setPdfDialogOpen(false);
   };
 
+  // Handle delete trabajo
+  const handleDeleteTrabajo = async () => {
+    const success = await deleteTrabajo(trabajo.id, trabajoPagos, (clienteId, deuda) => {
+      // Update client debt directly via setClientes would need access
+      // For now we use the updateCliente from context
+      if (cliente) {
+        updateCliente(cliente.id, {});
+      }
+    });
+    if (success) {
+      navigate('/trabajos');
+    }
+  };
+
   const editingItemData = editingItem ? trabajoItems.find(i => i.id === editingItem) : null;
 
   return (
@@ -281,6 +297,14 @@ export default function TrabajoDetail() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button 
+              variant="outline" 
+              className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+              onClick={handleDeleteTrabajo}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Eliminar
+            </Button>
           </div>
         </div>
       </div>

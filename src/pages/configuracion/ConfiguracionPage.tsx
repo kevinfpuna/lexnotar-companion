@@ -41,6 +41,7 @@ import { CategoriasTrabajoTab } from '@/components/configuracion/CategoriasTraba
 import { TiposDocumentoTab } from '@/components/configuracion/TiposDocumentoTab';
 import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { ThemeSelector } from '@/components/theme/ThemeSelector';
+import { PasswordStrengthIndicator } from '@/components/configuracion/PasswordStrengthIndicator';
 import { exportBackup, importBackup } from '@/lib/backup';
 
 export default function ConfiguracionPage() {
@@ -646,9 +647,19 @@ export default function ConfiguracionPage() {
         </TabsContent>
 
         {/* TAB 5: SEGURIDAD */}
-        <TabsContent value="seguridad" className="mt-6">
+        <TabsContent value="seguridad" className="mt-6 space-y-6">
           <Card className="p-6">
-            <h3 className="font-semibold mb-4">Cambiar Contraseña</h3>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-primary/10 rounded-full">
+                <Shield className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Cambiar Contraseña</h3>
+                <p className="text-sm text-muted-foreground">
+                  Actualiza tu contraseña para mantener tu cuenta segura
+                </p>
+              </div>
+            </div>
             
             <form onSubmit={handleChangePassword} className="space-y-6 max-w-md">
               <div className="space-y-2">
@@ -659,8 +670,11 @@ export default function ConfiguracionPage() {
                   value={oldPassword}
                   onChange={(e) => setOldPassword(e.target.value)}
                   required
+                  placeholder="••••••••"
                 />
               </div>
+              
+              <Separator />
               
               <div className="space-y-2">
                 <Label htmlFor="password-nueva">Nueva contraseña</Label>
@@ -670,8 +684,10 @@ export default function ConfiguracionPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
-                  minLength={4}
+                  minLength={8}
+                  placeholder="••••••••"
                 />
+                <PasswordStrengthIndicator password={newPassword} />
               </div>
               
               <div className="space-y-2">
@@ -682,14 +698,48 @@ export default function ConfiguracionPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  minLength={4}
+                  minLength={8}
+                  placeholder="••••••••"
                 />
+                {confirmPassword && newPassword !== confirmPassword && (
+                  <p className="text-sm text-destructive">Las contraseñas no coinciden</p>
+                )}
+                {confirmPassword && newPassword === confirmPassword && confirmPassword.length >= 8 && (
+                  <p className="text-sm text-green-600">✓ Las contraseñas coinciden</p>
+                )}
               </div>
               
-              <Button type="submit">
+              <Button 
+                type="submit"
+                disabled={!newPassword || newPassword !== confirmPassword || newPassword.length < 8}
+              >
+                <Shield className="h-4 w-4 mr-2" />
                 Cambiar contraseña
               </Button>
             </form>
+          </Card>
+
+          {/* Info de seguridad */}
+          <Card className="p-6">
+            <h4 className="font-semibold mb-3">Recomendaciones de seguridad</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <span className="text-primary">•</span>
+                Usa una contraseña única que no uses en otros sitios
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary">•</span>
+                Combina mayúsculas, minúsculas, números y símbolos
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary">•</span>
+                Cambia tu contraseña periódicamente (cada 3-6 meses)
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary">•</span>
+                No compartas tu contraseña con nadie
+              </li>
+            </ul>
           </Card>
         </TabsContent>
       </Tabs>

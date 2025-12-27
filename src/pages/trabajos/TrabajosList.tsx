@@ -7,7 +7,8 @@ import {
   Clock,
   Calendar,
   ArrowUpRight,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,10 +44,13 @@ export default function TrabajosList() {
     trabajos, 
     clientes,
     tiposTrabajo,
+    pagos,
     getClienteById,
     getTipoTrabajoById,
     getItemsByTrabajoId,
     createTrabajo,
+    deleteTrabajo,
+    setClientes,
     isLoading
   } = useApp();
 
@@ -98,6 +102,18 @@ export default function TrabajosList() {
     const newTrabajo = await createTrabajo(data, items);
     setTrabajoFormOpen(false);
     navigate(`/trabajos/${newTrabajo.id}`);
+  };
+
+  const handleDeleteTrabajo = async (e: React.MouseEvent, trabajoId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const trabajoPagos = pagos.filter(p => p.trabajoId === trabajoId);
+    await deleteTrabajo(trabajoId, trabajoPagos, (clienteId, deuda) => {
+      setClientes(prev => prev.map(c => 
+        c.id === clienteId ? { ...c, deudaTotalActual: deuda } : c
+      ));
+    });
   };
 
   return (
@@ -279,6 +295,14 @@ export default function TrabajosList() {
                         {formatCurrency(trabajo.saldoPendiente)}
                       </span>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => handleDeleteTrabajo(e, trabajo.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                     <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
                 </div>
