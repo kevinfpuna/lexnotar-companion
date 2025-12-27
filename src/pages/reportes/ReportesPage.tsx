@@ -25,7 +25,7 @@ import {
 } from '@/lib/mockData';
 import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
 import { DateRange } from 'react-day-picker';
-import { X, Calendar } from 'lucide-react';
+import { X, Calendar, Download, FileSpreadsheet } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -33,6 +33,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { 
+  exportIngresosToExcel, 
+  exportClientesDeudaToExcel, 
+  exportTrabajosToExcel,
+  exportReporteCompleto 
+} from '@/lib/excelExport';
+import { toast } from 'sonner';
+import { useApp } from '@/contexts/AppContext';
 
 // Colors for charts
 const COLORS = ['hsl(224, 76%, 33%)', 'hsl(160, 84%, 39%)', 'hsl(38, 92%, 50%)', 'hsl(199, 89%, 48%)', 'hsl(0, 72%, 51%)'];
@@ -40,6 +48,7 @@ const COLORS = ['hsl(224, 76%, 33%)', 'hsl(160, 84%, 39%)', 'hsl(38, 92%, 50%)',
 type Periodo = 'hoy' | 'semana' | 'mes' | 'año' | 'custom';
 
 export default function ReportesPage() {
+  const { clientes, trabajos, pagos, items } = useApp();
   const [periodo, setPeriodo] = useState<Periodo>('mes');
   const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
 
@@ -96,18 +105,18 @@ export default function ReportesPage() {
 
   const dateRange = getDateRange();
 
-  // Filter data by date range
+  // Filter data by date range - using app context data
   const filteredPagos = useMemo(() => {
-    return pagosMock.filter(p => 
+    return pagos.filter(p => 
       p.fechaPago >= dateRange.from && p.fechaPago <= dateRange.to
     );
-  }, [dateRange]);
+  }, [dateRange, pagos]);
 
   const filteredTrabajos = useMemo(() => {
-    return trabajosMock.filter(t => 
+    return trabajos.filter(t => 
       t.fechaInicio >= dateRange.from && t.fechaInicio <= dateRange.to
     );
-  }, [dateRange]);
+  }, [dateRange, trabajos]);
 
   // Calculate monthly income data
   const monthlyIncome = useMemo(() => {
@@ -152,9 +161,9 @@ export default function ReportesPage() {
     })).filter(t => t.cantidad > 0);
   }, [filteredTrabajos]);
 
-  // Top clients
+  // Top clients - using context data
   const topClients = useMemo(() => {
-    return [...clientesMock]
+    return [...clientes]
       .map(cliente => ({
         ...cliente,
         totalTrabajos: filteredTrabajos.filter(t => t.clienteId === cliente.id).length,
@@ -165,7 +174,29 @@ export default function ReportesPage() {
       .filter(c => c.totalTrabajos > 0)
       .sort((a, b) => b.totalFacturado - a.totalFacturado)
       .slice(0, 5);
-  }, [filteredTrabajos]);
+  }, [filteredTrabajos, clientes]);
+
+  // Excel export handlers
+  const handleExportIngresos = () => {
+    const ingresosPorMes = monthlyIncome.map(m => ({ mes: m.name, total: m.ingresos }));
+    exportIngresosToExcel(ingresosPorMes);
+    toast.success('Ingresos exportados a Excel');
+  };
+
+  const handleExportDeudas = () => {
+    exportClientesDeudaToExcel(clientes);
+    toast.success('Deudas exportadas a Excel');
+  };
+
+  const handleExportTrabajos = () => {
+    exportTrabajosToExcel(trabajos, clientes);
+    toast.success('Trabajos exportados a Excel');
+  };
+
+  const handleExportCompleto = () => {
+    exportReporteCompleto(pagos, trabajos, clientes, items);
+    toast.success('Reporte completo exportado a Excel');
+  };
 
   // Summary stats
   const totalIngresos = filteredPagos.reduce((sum, p) => sum + p.monto, 0);
@@ -206,6 +237,26 @@ export default function ReportesPage() {
             />
           )}
         </div>
+      </div>
+
+      {/* Export buttons */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={handleExportIngresos}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+          Exportar Ingresos
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleExportDeudas}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+          Exportar Deudas
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleExportTrabajos}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+          Exportar Trabajos
+        </Button>
+        <Button size="sm" onClick={handleExportCompleto}>
+          <Download className="h-4 w-4 mr-2" />
+          Reporte Completo
+        </Button>
       </div>
 
       {/* Summary cards */}

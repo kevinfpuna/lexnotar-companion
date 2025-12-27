@@ -8,7 +8,9 @@ import {
   Filter,
   ArrowUpRight,
   Plus,
-  Trash2
+  Trash2,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +37,8 @@ import { MetodoPago } from '@/types';
 import { PagoForm } from '@/components/forms/PagoForm';
 import { DeleteConfirmDialog } from '@/components/dialogs/DeleteConfirmDialog';
 import { applyPagoToItem, distributeGeneralPago, calculateClienteDeuda } from '@/lib/calculations';
+import { exportPagosToExcel, exportClientesDeudaToExcel } from '@/lib/excelExport';
+import { toast } from 'sonner';
 
 const metodosPago: MetodoPago[] = ['Efectivo', 'Transferencia', 'Tarjeta', 'Cheque'];
 
@@ -132,6 +136,17 @@ export default function PagosPage() {
     }
   };
 
+  // Handle Excel exports
+  const handleExportPagos = () => {
+    exportPagosToExcel(pagos, trabajos, clientes);
+    toast.success('Pagos exportados a Excel');
+  };
+
+  const handleExportDeudas = () => {
+    exportClientesDeudaToExcel(clientes);
+    toast.success('Deudas exportadas a Excel');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -142,10 +157,20 @@ export default function PagosPage() {
             Gestiona los cobros y revisa el estado financiero
           </p>
         </div>
-        <Button onClick={() => setPagoFormOpen(true)} disabled={trabajosConDeuda.length === 0}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Pago
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={handleExportPagos}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Exportar Pagos
+          </Button>
+          <Button variant="outline" onClick={handleExportDeudas}>
+            <Download className="h-4 w-4 mr-2" />
+            Exportar Deudas
+          </Button>
+          <Button onClick={() => setPagoFormOpen(true)} disabled={trabajosConDeuda.length === 0}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Pago
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
