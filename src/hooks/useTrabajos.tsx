@@ -279,6 +279,77 @@ export function useTrabajos() {
     return totals;
   }, [items, setTrabajos]);
 
+  // ✅ Delete trabajo with validations
+  const deleteTrabajo = useCallback(async (
+    id: string,
+    pagosDelTrabajo: { id: string; trabajoId: string }[],
+    updateClienteDeuda?: (clienteId: string, deuda: number) => void
+  ): Promise<boolean> => {
+    const trabajo = trabajos.find(t => t.id === id);
+    if (!trabajo) {
+      toast.error('Trabajo no encontrado');
+      return false;
+    }
+
+    const trabajoItems = items.filter(i => i.trabajoId === id);
+
+    // ✅ VALIDACIÓN 1: No eliminar si hay ítems con saldo pendiente
+    const itemsConSaldo = trabajoItems.filter(i => i.saldo > 0);
+    if (itemsConSaldo.length > 0) {
+      toast.error(
+        `No se puede eliminar: hay ${itemsConSaldo.length} ítem(s) con saldo pendiente`,
+        {
+          description: 'Debes completar o eliminar los pagos primero',
+          duration: 5000
+        }
+      );
+      return false;
+    }
+
+    // ✅ VALIDACIÓN 2: No eliminar si tiene pagos registrados
+    if (pagosDelTrabajo.length > 0) {
+      toast.error(
+        'No se puede eliminar: el trabajo tiene pagos registrados',
+        {
+          description: `Total de pagos: ${pagosDelTrabajo.length}`,
+          duration: 5000
+        }
+      );
+      return false;
+    }
+
+    // ✅ VALIDACIÓN 3: Confirmar con el usuario
+    const confirmado = window.confirm(
+      `¿Estás seguro de eliminar el trabajo "${trabajo.nombreTrabajo}"?\n\n` +
+      `Esto eliminará:\n` +
+      `- ${trabajoItems.length} ítems\n` +
+      `- Eventos relacionados\n` +
+      `- Documentos vinculados\n\n` +
+      `Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmado) return false;
+
+    // Eliminar en cascada
+    // 1. Eliminar ítems
+    setItems(prev => prev.filter(i => i.trabajoId !== id));
+
+    // 2. Eliminar el trabajo
+    setTrabajos(prev => prev.filter(t => t.id !== id));
+
+    // 3. Recalcular deuda del cliente
+    if (updateClienteDeuda) {
+      const clienteTrabajos = trabajos.filter(
+        t => t.clienteId === trabajo.clienteId && t.id !== id
+      );
+      const deudaTotal = clienteTrabajos.reduce((sum, t) => sum + t.saldoPendiente, 0);
+      updateClienteDeuda(trabajo.clienteId, deudaTotal);
+    }
+
+    toast.success('Trabajo eliminado exitosamente');
+    return true;
+  }, [trabajos, items, setTrabajos, setItems]);
+
   return {
     trabajos,
     items,
@@ -294,6 +365,7 @@ export function useTrabajos() {
     updateItem,
     updateItemEstado,
     deleteItem,
+    deleteTrabajo,
     recalculateTrabajo,
     setItems,
     setTrabajos,
