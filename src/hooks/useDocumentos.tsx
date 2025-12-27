@@ -66,6 +66,73 @@ export const isPdfFile = (mimeType: string): boolean => {
   return mimeType === 'application/pdf';
 };
 
+/**
+ * Comprimir imagen antes de convertir a base64
+ */
+async function compressImage(file: File, quality: number = 0.7): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target?.result as string;
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d')!;
+        
+        // Redimensionar si es muy grande (max 1920px en dimensión mayor)
+        let width = img.width;
+        let height = img.height;
+        const maxDimension = 1920;
+        
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height / width) * maxDimension;
+            width = maxDimension;
+          } else {
+            width = (width / height) * maxDimension;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              });
+              resolve(compressedFile);
+            } else {
+              reject(new Error('Error al comprimir imagen'));
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      
+      img.onerror = () => reject(new Error('Error al cargar imagen'));
+    };
+    
+    reader.onerror = () => reject(new Error('Error al leer archivo'));
+  });
+}
+
+/**
+ * Estimar tamaño final del base64
+ */
+function estimateBase64Size(base64: string): number {
+  // Base64 aumenta el tamaño ~33%
+  return Math.round((base64.length * 3) / 4);
+}
+
 // Initial mock data - small base64 representations
 const documentosMock: Documento[] = [
   {
@@ -124,40 +191,83 @@ export function useDocumentos() {
   const [documentos, setDocumentos] = useLocalStorage<Documento[]>('lexnotar_documentos', documentosMock);
 
   const createDocumento = useCallback(async (file: File, metadata: CreateDocumentoData): Promise<Documento> => {
-    try {
-      // Validate file size (max 10MB)
-      const maxSizeMB = 10;
-      if (file.size > maxSizeMB * 1024 * 1024) {
-        throw new Error(`El archivo excede el tamaño máximo de ${maxSizeMB}MB`);
-      }
-      
-      const base64 = await fileToBase64(file);
-      
-      const newDoc: Documento = {
-        id: generateId(),
-        nombre: file.name,
-        tipo: metadata.tipo,
-        archivoBase64: base64,
-        mimeType: file.type || getMimeType(file.name),
-        size: Math.round(file.size / 1024), // KB
-        fechaSubida: new Date(),
-        fechaActualizacion: new Date(),
-        clienteId: metadata.clienteId,
-        trabajoId: metadata.trabajoId,
-        itemId: metadata.itemId,
-        descripcion: metadata.descripcion,
-        tags: metadata.tags,
-        vigenciaHasta: metadata.vigenciaHasta,
-      };
-      
-      setDocumentos(prev => [...prev, newDoc]);
-      toast.success('Documento subido exitosamente');
-      return newDoc;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error al subir documento';
-      toast.error(message);
-      throw error;
+    // ✅ LÍMITE ESTRICTO: 5MB para archivos originales
+    const MAX_SIZE_MB = 5;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      toast.error(
+        `El archivo excede el tamaño máximo de ${MAX_SIZE_MB}MB`,
+        {
+          description: `Tamaño actual: ${(file.size / 1024 / 1024).toFixed(2)}MB`
+        }
+      );
+      throw new Error(`Archivo excede ${MAX_SIZE_MB}MB`);
     }
+
+    let fileToProcess = file;
+
+    // ✅ COMPRIMIR imágenes automáticamente
+    if (file.type.startsWith('image/')) {
+      toast.info('Comprimiendo imagen...', { duration: 2000 });
+      
+      try {
+        fileToProcess = await compressImage(file, 0.7);
+        
+        const originalSizeMB = (file.size / 1024 / 1024).toFixed(2);
+        const compressedSizeMB = (fileToProcess.size / 1024 / 1024).toFixed(2);
+        const reduction = (((file.size - fileToProcess.size) / file.size) * 100).toFixed(0);
+        
+        toast.success(
+          `Imagen comprimida: ${originalSizeMB}MB → ${compressedSizeMB}MB (-${reduction}%)`,
+          { duration: 3000 }
+        );
+      } catch (error) {
+        console.error('Error comprimiendo imagen:', error);
+        toast.warning('No se pudo comprimir la imagen, usando original');
+        fileToProcess = file;
+      }
+    }
+
+    // Convertir a base64
+    const base64 = await fileToBase64(fileToProcess);
+
+    // ✅ VALIDAR tamaño final del base64
+    const base64SizeKB = estimateBase64Size(base64) / 1024;
+    const MAX_BASE64_MB = 8; // Límite para base64 (más permisivo)
+    
+    if (base64SizeKB > MAX_BASE64_MB * 1024) {
+      toast.error(
+        `El archivo procesado aún excede el límite de ${MAX_BASE64_MB}MB`,
+        {
+          description: 'Intenta con un archivo más pequeño o menor resolución'
+        }
+      );
+      throw new Error('Archivo procesado excede límite');
+    }
+
+    const newDoc: Documento = {
+      id: generateId(),
+      nombre: file.name,
+      tipo: metadata.tipo,
+      archivoBase64: base64,
+      mimeType: fileToProcess.type || getMimeType(file.name),
+      size: Math.round(base64SizeKB),
+      fechaSubida: new Date(),
+      fechaActualizacion: new Date(),
+      clienteId: metadata.clienteId,
+      trabajoId: metadata.trabajoId,
+      itemId: metadata.itemId,
+      descripcion: metadata.descripcion,
+      tags: metadata.tags || [],
+      vigenciaHasta: metadata.vigenciaHasta,
+    };
+
+    setDocumentos(prev => [...prev, newDoc]);
+    
+    toast.success('Documento subido exitosamente', {
+      description: `${newDoc.nombre} (${base64SizeKB.toFixed(2)}KB)`
+    });
+    
+    return newDoc;
   }, [setDocumentos]);
 
   const updateDocumento = useCallback(async (id: string, updates: Partial<Omit<Documento, 'id' | 'archivoBase64' | 'mimeType' | 'size' | 'fechaSubida'>>): Promise<void> => {

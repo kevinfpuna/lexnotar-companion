@@ -225,3 +225,23 @@ export interface DashboardStats {
   ingresosMes: number;
   proximosVencimientos: EventoCalendario[];
 }
+
+// Presupuesto con versiones
+export interface PresupuestoVersion {
+  id: string;
+  trabajoId: string;
+  version: number;
+  estado: 'borrador' | 'enviado' | 'aprobado' | 'rechazado';
+  subtotal: number;
+  descuentoGlobal: number;
+  cargosExtra: number;
+  iva: number;
+  total: number;
+  terminosCondiciones?: string;
+  pdfBase64?: string;
+  fechaCreacion: Date;
+  fechaEnviado?: Date;
+  fechaAprobado?: Date;
+  fechaRechazado?: Date;
+  motivoRechazo?: string;
+}
